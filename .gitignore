@@ -3,5 +3,5 @@
 *.exe
 _cmd/prokishi-server/db
 _cmd/prokishi/prokishi.ini
-_cmd/build/db
-_cmd/build/prokishi.ini
+_cmd/build
+_work
