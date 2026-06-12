@@ -1,193 +1,84 @@
 package main
 
 import (
-	"errors"
-	"flag"
-	"fmt"
-	"log/slog"
-	"os"
-	"prokishi"
-	"prokishi/db"
-	"prokishi/server"
+	"embed"
 
-	"golang.org/x/xerrors"
+	"log"
+	"time"
+
+	"github.com/wailsapp/wails/v3/pkg/application"
 )
 
-var version string
+// Wails uses Go's `embed` package to embed the frontend files into the binary.
+// Any files in the frontend/dist folder will be embedded into the binary and
+// made available to the frontend.
+// See https://pkg.go.dev/embed for more information.
 
-var (
-	port    int
-	host    string
-	verbose bool
-)
+//go:embed all:frontend/dist
+var assets embed.FS
 
 func init() {
-	flag.IntVar(&port, "p", 8080, "prokishi-server port")
-	flag.StringVar(&host, "s", "", "prokishi-server name(default empty)")
-	flag.BoolVar(&verbose, "v", false, "verbose")
+	// Register a custom event whose associated data type is string.
+	// This is not required, but the binding generator will pick up registered events
+	// and provide a strongly typed JS/TS API for them.
+	application.RegisterEvent[string]("time")
 }
 
-var consoleLog = true
-
+// main function serves as the application's entry point. It initializes the application, creates a window,
+// and starts a goroutine that emits a time-based event every second. It subsequently runs the application and
+// logs any error that might occur.
 func main() {
-	flag.Parse()
-	err := run()
+
+	// Create a new Wails application by providing the necessary options.
+	// Variables 'Name' and 'Description' are for application metadata.
+	// 'Assets' configures the asset server with the 'FS' variable pointing to the frontend files.
+	// 'Bind' is a list of Go struct instances. The frontend has access to the methods of these instances.
+	// 'Mac' options tailor the application when running an macOS.
+	app := application.New(application.Options{
+		Name:        "prokishi-server",
+		Description: "A demo of using raw HTML & CSS",
+		Services: []application.Service{
+			application.NewService(&GreetService{}),
+		},
+		Assets: application.AssetOptions{
+			Handler: application.AssetFileServerFS(assets),
+		},
+		Mac: application.MacOptions{
+			ApplicationShouldTerminateAfterLastWindowClosed: true,
+		},
+	})
+
+	// Create a new window with the necessary options.
+	// 'Title' is the title of the window.
+	// 'Mac' options tailor the window when running on macOS.
+	// 'BackgroundColour' is the background colour of the window.
+	// 'URL' is the URL that will be loaded into the webview.
+	app.Window.NewWithOptions(application.WebviewWindowOptions{
+		Title: "Window 1",
+		Mac: application.MacWindow{
+			InvisibleTitleBarHeight: 50,
+			Backdrop:                application.MacBackdropTranslucent,
+			TitleBar:                application.MacTitleBarHiddenInset,
+		},
+		BackgroundColour: application.NewRGB(27, 38, 54),
+		URL:              "/",
+	})
+
+	// Create a goroutine that emits an event containing the current time every second.
+	// The frontend can listen to this event and update the UI accordingly.
+	go func() {
+		for {
+			now := time.Now().Format(time.RFC1123)
+			app.Event.Emit("time", now)
+			time.Sleep(time.Second)
+		}
+	}()
+
+	// Run the application. This blocks until the application has been exited.
+	err := app.Run()
+
+	// If an error occurred while running the application, log it and exit.
 	if err != nil {
-		msg := fmt.Sprintf("run() error:\n%+v", err)
-		//slogがコンソール時はいらない,設定がまだの場合はいらない
-		if !consoleLog {
-			slog.Error(msg)
-		}
-		fmt.Fprintf(os.Stderr, msg+"\n")
+		log.Fatal(err)
 	}
-}
-
-func run() error {
-
-	dev := version == ""
-
-	err := db.Init(dev)
-	if err != nil {
-		if !errors.Is(err, db.AlreadyErr) {
-			return xerrors.Errorf("db.Init() error: %w", err)
-		}
-	}
-
-	db.Open(dev)
-	defer db.Close()
-
-	//DB操作モードかを判定
-	args := flag.Args()
-	if len(args) != 0 {
-		err := command(args)
-		if err != nil {
-			return xerrors.Errorf("command() error: %w", err)
-		}
-		return nil
-	}
-
-	lv := slog.LevelInfo
-	if verbose {
-		lv = slog.LevelDebug
-	} else if !dev {
-		lv = slog.LevelWarn
-	}
-
-	if dev {
-		defer prokishi.SetLog(lv, os.Stdout)
-	} else {
-		consoleLog = false
-		//レベルを確認
-		defer prokishi.SetLogFile(lv, "prokishi-server", dev).Close()
-	}
-
-	err = server.Run(host, port)
-	if err != nil {
-		return xerrors.Errorf("server.Run() error: %w", err)
-	}
-	return nil
-}
-
-func command(args []string) error {
-
-	var err error
-	sub := args[0]
-
-	switch sub {
-	case "version":
-		fmt.Println("prokishi-server version:", version)
-	case "engine":
-		if len(args) >= 2 {
-			err = commandEngine(args[1:])
-		} else {
-			err = server.PrintEngineIds()
-		}
-	case "code":
-		if len(args) >= 2 {
-			err = commandCode(args[1:])
-		} else {
-			err = server.PrintCodes()
-		}
-	default:
-		return fmt.Errorf("unknow sub command: %s", sub)
-	}
-
-	if err != nil {
-		return xerrors.Errorf("Sub Command[%s] error: %w", sub, err)
-	}
-	return nil
-}
-
-func commandEngine(args []string) error {
-
-	var err error
-	mode := args[0]
-
-	switch mode {
-	case "generate":
-		if len(args) == 2 {
-			p := args[1]
-			err = server.GenerateEngineId(p)
-		} else if len(args) > 2 {
-			err = fmt.Errorf("Please separate the engine paths with double quotes.")
-		} else {
-			err = fmt.Errorf("engine generate mode required path")
-		}
-	case "register":
-		if len(args) == 3 {
-			id := args[1]
-			p := args[2]
-			err = server.RegisterEngineId(id, p)
-		} else if len(args) > 3 {
-			err = fmt.Errorf("Please separate the engine paths with double quotes.")
-		} else {
-			err = fmt.Errorf("engine register mode required id,path")
-		}
-	case "delete":
-		if len(args) >= 2 {
-			id := args[1]
-			err = server.DeleteEngineId(id)
-		} else {
-			err = fmt.Errorf("engine delete mode required id")
-		}
-	default:
-		return fmt.Errorf("engine command unknown mode: %s", mode)
-	}
-
-	if err != nil {
-		return xerrors.Errorf("engine mode[%s] error: %w", mode, err)
-	}
-
-	return nil
-}
-
-func commandCode(args []string) error {
-	var err error
-	mode := args[0]
-
-	switch mode {
-	case "generate":
-		err = server.GenerateCode()
-	case "register":
-		if len(args) >= 2 {
-			code := args[1]
-			err = server.RegisterCode(code)
-		} else {
-			err = fmt.Errorf("code register mode required code")
-		}
-	case "delete":
-		if len(args) >= 2 {
-			code := args[1]
-			err = server.DeleteCode(code)
-		} else {
-			err = fmt.Errorf("code delete mode required code")
-		}
-	default:
-		return fmt.Errorf("code command unknown mode: %s", mode)
-	}
-
-	if err != nil {
-		return xerrors.Errorf("code mode[%s] error: %w", mode, err)
-	}
-	return nil
 }
