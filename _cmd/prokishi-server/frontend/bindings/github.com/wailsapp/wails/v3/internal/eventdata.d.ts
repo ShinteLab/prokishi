@@ -8,6 +8,9 @@ import type { Events } from "@wailsio/runtime";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
 import type * as registry$0 from "../../../../../prokishi/registry/models.js";
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
+import type * as main$0 from "../../../../../wails/models.js";
 
 declare module "@wailsio/runtime" {
     namespace Events {
@@ -15,6 +18,7 @@ declare module "@wailsio/runtime" {
             "conn-added": registry$0.Connection;
             "conn-removed": string;
             "request-close": boolean;
+            "server-state": main$0.ServerStateEvent;
             "time": string;
             "usi-log": registry$0.USILogEvent;
         }

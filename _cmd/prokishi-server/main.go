@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"embed"
 	"errors"
 	"flag"
@@ -12,7 +11,6 @@ import (
 	"prokishi"
 	"prokishi/db"
 	"prokishi/registry"
-	"prokishi/server"
 	"time"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
@@ -37,9 +35,10 @@ func init() {
 	application.RegisterEvent[registry.Connection]("conn-added")
 	application.RegisterEvent[string]("conn-removed")
 	application.RegisterEvent[registry.USILogEvent]("usi-log")
+	application.RegisterEvent[ServerStateEvent]("server-state")
 
-	flag.IntVar(&port, "p", 8080, "prokishi-server port")
-	flag.StringVar(&host, "s", "", "prokishi-server name(default empty)")
+	flag.IntVar(&port, "p", 8080, "prokishi-server port (initial default)")
+	flag.StringVar(&host, "s", "", "prokishi-server host (initial default)")
 	flag.BoolVar(&verbose, "v", false, "verbose")
 }
 
@@ -95,19 +94,18 @@ func run() error {
 
 	reg := registry.New()
 
-	ctx, cancelServer := context.WithCancel(context.Background())
+	serverSvc := &ServerService{registry: reg, dev: dev}
 
-	go func() {
-		if err := server.Run(ctx, host, port, server.WithRegistry(reg)); err != nil {
-			slog.Error("server.Run() error", "error", err)
-		}
-	}()
+	// 初回起動時のみフラグ値をファイルに保存
+	if err := serverSvc.InitConfig(host, port); err != nil {
+		slog.Warn("InitConfig failed", "err", err)
+	}
 
-	return runUI(cancelServer, reg)
+	return runUI(serverSvc, reg)
 }
 
-func runUI(cancelServer context.CancelFunc, reg *registry.Registry) error {
-	winSvc := &WindowService{cancelServer: cancelServer}
+func runUI(serverSvc *ServerService, reg *registry.Registry) error {
+	winSvc := &WindowService{serverService: serverSvc}
 	debugSvc := &DebugService{registry: reg}
 
 	app := application.New(application.Options{
@@ -118,6 +116,7 @@ func runUI(cancelServer context.CancelFunc, reg *registry.Registry) error {
 			application.NewService(&AdminService{}),
 			application.NewService(winSvc),
 			application.NewService(debugSvc),
+			application.NewService(serverSvc),
 		},
 		Assets: application.AssetOptions{
 			Handler: application.AssetFileServerFS(assets),
@@ -128,8 +127,8 @@ func runUI(cancelServer context.CancelFunc, reg *registry.Registry) error {
 	})
 
 	winSvc.app = app
+	serverSvc.app = app
 
-	// アプリ起動後にレジストリのイベント emit を有効化
 	reg.SetEmit(func(event string, data any) {
 		app.Event.Emit(event, data)
 	})
@@ -162,6 +161,14 @@ func runUI(cancelServer context.CancelFunc, reg *registry.Registry) error {
 			time.Sleep(time.Second)
 		}
 	}()
+
+	// autoStart の場合はサーバを起動
+	cfg, _ := serverSvc.GetConfig()
+	if cfg.AutoStart {
+		if err := serverSvc.Start(); err != nil {
+			slog.Error("autoStart failed", "err", err)
+		}
+	}
 
 	err := app.Run()
 	if err != nil {

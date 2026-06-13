@@ -1,19 +1,13 @@
 package main
 
-import (
-	"context"
-
-	"github.com/wailsapp/wails/v3/pkg/application"
-)
+import "github.com/wailsapp/wails/v3/pkg/application"
 
 type WindowService struct {
-	app          *application.App
-	cancelServer context.CancelFunc
+	app           *application.App
+	serverService *ServerService
 }
 
-// ShutdownAndQuit はフロントエンドの確認ダイアログで承認された後に呼ばれる。
-// サーバを停止してアプリケーションを終了する。
 func (s *WindowService) ShutdownAndQuit() {
-	s.cancelServer()
+	s.serverService.Stop()
 	s.app.Quit()
 }

@@ -1,11 +1,11 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
-import { Box, Divider, IconButton, List, ListItemButton, ListItemText, Tooltip, Typography } from '@mui/material'
+import { Box, Chip, Divider, IconButton, List, ListItemButton, ListItemText, Tooltip, Typography } from '@mui/material'
 import RefreshIcon from '@mui/icons-material/Refresh'
 import ViewColumnIcon from '@mui/icons-material/ViewColumn'
 import ViewStreamIcon from '@mui/icons-material/ViewStream'
 import WrapTextIcon from '@mui/icons-material/WrapText'
 import { Events } from '@wailsio/runtime'
-import { DebugService } from '../bindings/wails'
+import { DebugService, ServerService } from '../bindings/wails'
 
 type ConnectionInfo = { id: string; engineId: string; enginePath: string; connectedAt: any; active?: boolean }
 type LogEntryItem  = { timestamp: any; dir: number; message: string }
@@ -123,6 +123,7 @@ function SplitPane({ logs, dir, wrap, bottomRef, sendRange, onSendClick, highlig
 }
 
 export function MonitorView() {
+  const [serverState, setServerState] = useState<{ running: boolean; url: string }>({ running: false, url: '' })
   const [connections, setConnections] = useState<ConnectionInfo[]>([])
   const [selectedID, setSelectedID] = useState<string | null>(null)
   const [logs, setLogs] = useState<LogEntryItem[]>([])
@@ -136,6 +137,16 @@ export function MonitorView() {
 
   useEffect(() => { selectedIDRef.current = selectedID }, [selectedID])
   useEffect(() => { setSendRange(null); setAnchorIdx(null) }, [selectedID, splitMode])
+
+  // サーバ状態の取得・購読
+  useEffect(() => {
+    ServerService.GetState().then((s: any) => { if (s) setServerState(s) }).catch(() => {})
+    const unsub = Events.On('server-state', (e: any) => {
+      const s = e.data
+      if (s) setServerState(s)
+    })
+    return () => { unsub() }
+  }, [])
 
   const loadConnections = useCallback(() => {
     DebugService.ListConnections()
@@ -237,15 +248,29 @@ export function MonitorView() {
     <Box sx={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
       {/* 接続一覧 */}
       <Box sx={{ width: 260, flexShrink: 0, borderRight: '1px solid', borderColor: 'divider', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-        <Box sx={{ px: 2, py: 0.5, display: 'flex', alignItems: 'center' }}>
-          <Typography variant="caption" sx={{ flex: 1, color: 'text.secondary', fontWeight: 600, letterSpacing: 0.5 }}>
+        <Box sx={{ px: 1.5, py: 0.75, display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Chip
+              label={serverState.running ? '起動中' : '停止中'}
+              color={serverState.running ? 'success' : 'default'}
+              size="small"
+              variant={serverState.running ? 'filled' : 'outlined'}
+              sx={{ height: 18, fontSize: '0.65rem' }}
+            />
+            {serverState.running && serverState.url && (
+              <Typography sx={{ fontFamily: 'monospace', fontSize: '0.7rem', color: 'success.light', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
+                {serverState.url}
+              </Typography>
+            )}
+            <Tooltip title="一覧を更新（切断済みを削除）">
+              <IconButton size="small" onClick={loadConnections} sx={{ color: 'text.disabled', '&:hover': { color: 'text.primary' }, ml: 'auto' }}>
+                <RefreshIcon sx={{ fontSize: 14 }} />
+              </IconButton>
+            </Tooltip>
+          </Box>
+          <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600, letterSpacing: 0.5 }}>
             接続中 ({connections.filter(c => c.active !== false).length})
           </Typography>
-          <Tooltip title="一覧を更新（切断済みを削除）">
-            <IconButton size="small" onClick={loadConnections} sx={{ color: 'text.disabled', '&:hover': { color: 'text.primary' } }}>
-              <RefreshIcon sx={{ fontSize: 15 }} />
-            </IconButton>
-          </Tooltip>
         </Box>
         <Divider />
         <List dense disablePadding sx={{ flex: 1, overflow: 'auto' }}>
