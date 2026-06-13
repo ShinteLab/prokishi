@@ -6,9 +6,19 @@
 // @ts-ignore: Unused imports
 import { Create as $Create } from "@wailsio/runtime";
 
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
+import * as registry$0 from "../../../../../prokishi/registry/models.js";
+
 function configure() {
     Object.freeze(Object.assign($Create.Events, {
+        "conn-added": $$createType0,
+        "usi-log": $$createType1,
     }));
 }
+
+// Private type creation functions
+const $$createType0 = registry$0.Connection.createFrom;
+const $$createType1 = registry$0.USILogEvent.createFrom;
 
 configure();

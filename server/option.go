@@ -1,7 +1,10 @@
 package server
 
+import "prokishi/registry"
+
 type Config struct {
-	Version string
+	Version  string
+	Registry *registry.Registry
 }
 
 const (
@@ -24,6 +27,13 @@ func Version(v string) Option {
 		} else {
 			c.Version = v
 		}
+		return nil
+	}
+}
+
+func WithRegistry(r *registry.Registry) Option {
+	return func(c *Config) error {
+		c.Registry = r
 		return nil
 	}
 }

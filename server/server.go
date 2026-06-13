@@ -10,6 +10,7 @@ import (
 	"os/signal"
 	"prokishi/api"
 	"prokishi/db"
+	"prokishi/registry"
 	"prokishi/usi"
 	"strconv"
 	"sync"
@@ -33,7 +34,16 @@ func Run(ctx context.Context, host string, port int, opts ...Option) error {
 	fmt.Println("Listener Address:", listener.Addr())
 
 	s := grpc.NewServer()
-	RegisterServiceServer(s)
+
+	var reg *registry.Registry
+	for _, opt := range opts {
+		cfg := &Config{}
+		opt(cfg)
+		if cfg.Registry != nil {
+			reg = cfg.Registry
+		}
+	}
+	RegisterServiceServer(s, reg)
 
 	go func() {
 		err := s.Serve(listener)
@@ -92,20 +102,23 @@ type Server struct {
 	api.USISendServiceServer
 	api.USIReceiveServiceServer
 
-	engines *sync.Map
+	engines  *sync.Map
+	registry *registry.Registry
 }
 
 // GRPCサービスを登録
-func RegisterServiceServer(r grpc.ServiceRegistrar) *Server {
+func RegisterServiceServer(r grpc.ServiceRegistrar, reg *registry.Registry) *Server {
 
-	var serv Server
+	serv := &Server{
+		engines:  &sync.Map{},
+		registry: reg,
+	}
 
-	api.RegisterConnectionServiceServer(r, &serv)
-	api.RegisterUSISendServiceServer(r, &serv)
-	api.RegisterUSIReceiveServiceServer(r, &serv)
+	api.RegisterConnectionServiceServer(r, serv)
+	api.RegisterUSISendServiceServer(r, serv)
+	api.RegisterUSIReceiveServiceServer(r, serv)
 
-	serv.engines = &sync.Map{}
-	return &serv
+	return serv
 }
 
 // 認証
@@ -135,30 +148,29 @@ func (s *Server) verifyAuthentication(code string) bool {
 	return true
 }
 
-// コネクションIDでエンジンを実行し登録する
-func (s *Server) startEngine(id string) (string, error) {
+// コネクションIDでエンジンを実行し登録する。connID と enginePath を返す。
+func (s *Server) startEngine(engineID string) (connID string, enginePath string, err error) {
 
-	if id == "" {
-		return "", fmt.Errorf("EngineId required.")
+	if engineID == "" {
+		return "", "", fmt.Errorf("EngineId required.")
 	}
 
-	e, err := db.SelectEngine(context.Background(), id)
-	if err != nil {
-		return "", xerrors.Errorf("db.SelectEngine() error: %w", err)
+	e, dbErr := db.SelectEngine(context.Background(), engineID)
+	if dbErr != nil {
+		return "", "", xerrors.Errorf("db.SelectEngine() error: %w", dbErr)
 	}
 	if e == nil {
-		return "", xerrors.Errorf("Engine is Not Found:[%s]", id)
+		return "", "", xerrors.Errorf("Engine is Not Found:[%s]", engineID)
 	}
 
-	engine, err := usi.NewSender(e.Path)
-	if err != nil {
-		return "", xerrors.Errorf("usi.NewSender() error: %w", err)
+	engine, newErr := usi.NewSender(e.Path)
+	if newErr != nil {
+		return "", "", xerrors.Errorf("usi.NewSender() error: %w", newErr)
 	}
 
-	//コネクションIDを生成
 	uid := uuid.New()
-	rtn := uid.String()
-	s.engines.Store(rtn, engine)
-	return rtn, nil
+	connID = uid.String()
+	s.engines.Store(connID, engine)
+	return connID, e.Path, nil
 }
 

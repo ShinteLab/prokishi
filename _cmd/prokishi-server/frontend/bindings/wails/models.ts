@@ -34,6 +34,39 @@ export class CodeItem {
     }
 }
 
+export class ConnectionInfo {
+    "id": string;
+    "engineId": string;
+    "enginePath": string;
+    "connectedAt": string;
+
+    /** Creates a new ConnectionInfo instance. */
+    constructor($$source: Partial<ConnectionInfo> = {}) {
+        if (!("id" in $$source)) {
+            this["id"] = "";
+        }
+        if (!("engineId" in $$source)) {
+            this["engineId"] = "";
+        }
+        if (!("enginePath" in $$source)) {
+            this["enginePath"] = "";
+        }
+        if (!("connectedAt" in $$source)) {
+            this["connectedAt"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ConnectionInfo instance from a string or object.
+     */
+    static createFrom($$source: any = {}): ConnectionInfo {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new ConnectionInfo($$parsedSource as Partial<ConnectionInfo>);
+    }
+}
+
 export class EngineItem {
     "id": string;
     "path": string;
@@ -60,5 +93,34 @@ export class EngineItem {
     static createFrom($$source: any = {}): EngineItem {
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         return new EngineItem($$parsedSource as Partial<EngineItem>);
+    }
+}
+
+export class LogEntryItem {
+    "timestamp": string;
+    "dir": number;
+    "message": string;
+
+    /** Creates a new LogEntryItem instance. */
+    constructor($$source: Partial<LogEntryItem> = {}) {
+        if (!("timestamp" in $$source)) {
+            this["timestamp"] = "";
+        }
+        if (!("dir" in $$source)) {
+            this["dir"] = 0;
+        }
+        if (!("message" in $$source)) {
+            this["message"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new LogEntryItem instance from a string or object.
+     */
+    static createFrom($$source: any = {}): LogEntryItem {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new LogEntryItem($$parsedSource as Partial<LogEntryItem>);
     }
 }

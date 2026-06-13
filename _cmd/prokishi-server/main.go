@@ -11,6 +11,7 @@ import (
 	"os"
 	"prokishi"
 	"prokishi/db"
+	"prokishi/registry"
 	"prokishi/server"
 	"time"
 
@@ -32,8 +33,10 @@ var (
 
 func init() {
 	application.RegisterEvent[string]("time")
-	// OS クローズ要求をフロントエンドに通知するイベント
 	application.RegisterEvent[bool]("request-close")
+	application.RegisterEvent[registry.Connection]("conn-added")
+	application.RegisterEvent[string]("conn-removed")
+	application.RegisterEvent[registry.USILogEvent]("usi-log")
 
 	flag.IntVar(&port, "p", 8080, "prokishi-server port")
 	flag.StringVar(&host, "s", "", "prokishi-server name(default empty)")
@@ -90,19 +93,22 @@ func run() error {
 		defer prokishi.SetLogFile(lv, "prokishi-server", dev).Close()
 	}
 
+	reg := registry.New()
+
 	ctx, cancelServer := context.WithCancel(context.Background())
 
 	go func() {
-		if err := server.Run(ctx, host, port); err != nil {
+		if err := server.Run(ctx, host, port, server.WithRegistry(reg)); err != nil {
 			slog.Error("server.Run() error", "error", err)
 		}
 	}()
 
-	return runUI(cancelServer)
+	return runUI(cancelServer, reg)
 }
 
-func runUI(cancelServer context.CancelFunc) error {
+func runUI(cancelServer context.CancelFunc, reg *registry.Registry) error {
 	winSvc := &WindowService{cancelServer: cancelServer}
+	debugSvc := &DebugService{registry: reg}
 
 	app := application.New(application.Options{
 		Name:        "prokishi-server",
@@ -111,6 +117,7 @@ func runUI(cancelServer context.CancelFunc) error {
 			application.NewService(&GreetService{}),
 			application.NewService(&AdminService{}),
 			application.NewService(winSvc),
+			application.NewService(debugSvc),
 		},
 		Assets: application.AssetOptions{
 			Handler: application.AssetFileServerFS(assets),
@@ -121,6 +128,11 @@ func runUI(cancelServer context.CancelFunc) error {
 	})
 
 	winSvc.app = app
+
+	// アプリ起動後にレジストリのイベント emit を有効化
+	reg.SetEmit(func(event string, data any) {
+		app.Event.Emit(event, data)
+	})
 
 	win := app.Window.NewWithOptions(application.WebviewWindowOptions{
 		Title:     "prokishi-server",
@@ -138,7 +150,6 @@ func runUI(cancelServer context.CancelFunc) error {
 		URL:              "/",
 	})
 
-	// OS クローズ（Alt+F4 等）をキャンセルし、フロントエンドに確認を委譲する
 	win.RegisterHook(events.Common.WindowClosing, func(event *application.WindowEvent) {
 		event.Cancel()
 		app.Event.Emit("request-close", true)
