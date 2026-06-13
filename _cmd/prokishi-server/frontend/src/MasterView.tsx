@@ -1,15 +1,16 @@
 import { useState, useEffect, useCallback } from 'react'
 import {
-  Box, Button, Chip, Container, FormControlLabel, IconButton, Paper,
-  Snackbar, Alert, Switch, Tab, Tabs, Table, TableBody, TableCell,
-  TableContainer, TableHead, TableRow, TextField, Tooltip, CircularProgress,
-  Typography,
+  Box, Button, Chip, Container, FormControlLabel, IconButton, MenuItem,
+  Paper, Snackbar, Alert, Select, Switch, Tab, Tabs, Table, TableBody,
+  TableCell, TableContainer, TableHead, TableRow, TextField, Tooltip,
+  CircularProgress, Typography, InputLabel, FormControl,
 } from '@mui/material'
 import {
   Add as AddIcon,
   AutoFixHigh as GenerateIcon,
   ContentCopy as CopyIcon,
   Delete as DeleteIcon,
+  Download as DownloadIcon,
   FolderOpen as FolderOpenIcon,
   PlayArrow as StartIcon,
   Refresh as RefreshIcon,
@@ -38,6 +39,12 @@ export function MasterView() {
   const [cfg, setCfg] = useState<ServerConfig>({ host: '', port: 8080, autoStart: true })
   const [cfgDirty, setCfgDirty] = useState(false)
   const [savingCfg, setSavingCfg] = useState(false)
+  // クライアント設定
+  const [clientHost, setClientHost] = useState('localhost')
+  const [clientPort, setClientPort] = useState(8080)
+  const [clientEngineId, setClientEngineId] = useState('')
+  const [clientCode, setClientCode] = useState('')
+  const [clientLogLevel, setClientLogLevel] = useState('warn')
   // 共通
   const [snack, setSnack] = useState<{ msg: string; sev: Severity } | null>(null)
 
@@ -46,7 +53,9 @@ export function MasterView() {
   // --- サーバ設定 ---
   useEffect(() => {
     ServerService.GetState().then((s: any) => setServerState(s)).catch(() => {})
-    ServerService.GetConfig().then((c: any) => { if (c) setCfg(c) }).catch(() => {})
+    ServerService.GetConfig().then((c: any) => {
+      if (c) { setCfg(c); setClientPort(c.port ?? 8080) }
+    }).catch(() => {})
 
     const unsub = Events.On('server-state', (e: any) => {
       const s: ServerState = e.data
@@ -78,6 +87,13 @@ export function MasterView() {
   const handleStop = () => {
     ServerService.Stop()
       .then(() => notify('サーバを停止しました'))
+      .catch((e: any) => notify(String(e), 'error'))
+  }
+
+  // --- クライアント設定 ---
+  const handleDownloadClientConfig = () => {
+    AdminService.SaveClientConfig(clientHost, clientPort, clientCode, clientEngineId, clientLogLevel)
+      .then(() => notify('prokishi.ini を保存しました'))
       .catch((e: any) => notify(String(e), 'error'))
   }
 
@@ -155,6 +171,7 @@ export function MasterView() {
             <Tab label="サーバ設定" />
             <Tab label="エンジン管理" />
             <Tab label="認証コード管理" />
+            <Tab label="クライアント設定" />
           </Tabs>
 
           {/* サーバ設定タブ */}
@@ -358,6 +375,105 @@ export function MasterView() {
                   </TableBody>
                 </Table>
               </TableContainer>
+            </Box>
+          )}
+          {/* クライアント設定タブ */}
+          {tab === 3 && (
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+              <Paper variant="outlined" sx={{ p: 2, display: 'flex', flexDirection: 'column', gap: 2 }}>
+                <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                  クライアント (prokishi) の接続設定ファイルを生成します。
+                </Typography>
+
+                <TextField
+                  label="サーバホスト"
+                  size="small"
+                  value={clientHost}
+                  onChange={e => setClientHost(e.target.value)}
+                  placeholder="localhost"
+                  helperText="クライアントがサーバに接続するホスト名または IP アドレス"
+                />
+
+                <TextField
+                  label="ポート"
+                  size="small"
+                  type="number"
+                  value={clientPort}
+                  onChange={e => setClientPort(parseInt(e.target.value) || 8080)}
+                  slotProps={{ htmlInput: { min: 1, max: 65535 } }}
+                  sx={{ width: 160 }}
+                />
+
+                <FormControl size="small" fullWidth>
+                  <InputLabel>エンジン ID</InputLabel>
+                  <Select
+                    value={clientEngineId}
+                    label="エンジン ID"
+                    onChange={e => setClientEngineId(e.target.value)}
+                    displayEmpty
+                  >
+                    <MenuItem value=""><em>— 選択してください —</em></MenuItem>
+                    {engines.map(e => (
+                      <MenuItem key={e.id} value={e.id}>
+                        <Box sx={{ display: 'flex', flexDirection: 'column' }}>
+                          <Typography sx={{ fontFamily: 'monospace', fontSize: '0.75rem' }}>{e.id}</Typography>
+                          <Typography sx={{ fontSize: '0.7rem', color: 'text.secondary' }}>{e.path}</Typography>
+                        </Box>
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+
+                <FormControl size="small" fullWidth>
+                  <InputLabel>認証コード (任意)</InputLabel>
+                  <Select
+                    value={clientCode}
+                    label="認証コード (任意)"
+                    onChange={e => setClientCode(e.target.value)}
+                  >
+                    <MenuItem value="">— なし —</MenuItem>
+                    {codes.map(c => (
+                      <MenuItem key={c.code} value={c.code}>
+                        <Typography sx={{ fontFamily: 'monospace', fontSize: '0.75rem' }}>{c.code}</Typography>
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+
+                <FormControl size="small" sx={{ width: 160 }}>
+                  <InputLabel>ログレベル</InputLabel>
+                  <Select value={clientLogLevel} label="ログレベル" onChange={e => setClientLogLevel(e.target.value)}>
+                    <MenuItem value="debug">debug</MenuItem>
+                    <MenuItem value="info">info</MenuItem>
+                    <MenuItem value="warn">warn</MenuItem>
+                    <MenuItem value="error">error</MenuItem>
+                  </Select>
+                </FormControl>
+
+                {/* プレビュー */}
+                <Box sx={{ bgcolor: 'background.default', borderRadius: 1, p: 1.5, border: '1px solid', borderColor: 'divider' }}>
+                  <Typography variant="caption" sx={{ color: 'text.disabled', display: 'block', mb: 0.5 }}>prokishi.ini プレビュー</Typography>
+                  <Box component="pre" sx={{ fontFamily: 'monospace', fontSize: '0.78rem', color: 'text.primary', m: 0 }}>
+                    {`host = "${clientHost}"\nport = ${clientPort}\ncode = "${clientCode}"\nengineId = "${clientEngineId}"\nlogLevel = "${clientLogLevel}"`}
+                  </Box>
+                </Box>
+
+                <Box>
+                  <Button
+                    variant="contained"
+                    startIcon={<DownloadIcon />}
+                    onClick={handleDownloadClientConfig}
+                    disabled={!clientEngineId}
+                  >
+                    prokishi.ini を保存
+                  </Button>
+                  {!clientEngineId && (
+                    <Typography variant="caption" sx={{ ml: 1.5, color: 'warning.main' }}>
+                      エンジン ID を選択してください
+                    </Typography>
+                  )}
+                </Box>
+              </Paper>
             </Box>
           )}
         </Container>

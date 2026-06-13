@@ -68,6 +68,19 @@ export function RegisterEngine(path) {
 }
 
 /**
+ * SaveClientConfig はクライアント設定ファイル (prokishi.ini) をファイル保存ダイアログで書き出す。
+ * @param {string} host
+ * @param {number} port
+ * @param {string} code
+ * @param {string} engineId
+ * @param {string} logLevel
+ * @returns {$CancellablePromise<void>}
+ */
+export function SaveClientConfig(host, port, code, engineId, logLevel) {
+    return $Call.ByID(266601238, host, port, code, engineId, logLevel);
+}
+
+/**
  * @returns {$CancellablePromise<string>}
  */
 export function SelectEnginePath() {

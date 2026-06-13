@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"fmt"
+	"os"
 	"prokishi/db"
 
 	"github.com/google/uuid"
@@ -85,6 +87,29 @@ func (a *AdminService) RegisterCode(code string) error {
 
 func (a *AdminService) DeleteCode(code string) error {
 	return db.DeleteCode(code)
+}
+
+// SaveClientConfig はクライアント設定ファイル (prokishi.ini) をファイル保存ダイアログで書き出す。
+func (a *AdminService) SaveClientConfig(host string, port int, code string, engineId string, logLevel string) error {
+	content := fmt.Sprintf("host = %q\nport = %d\ncode = %q\nengineId = %q\nlogLevel = %q\n",
+		host, port, code, engineId, logLevel)
+
+	path, err := application.Get().Dialog.SaveFile().
+		SetMessage("クライアント設定ファイルの保存先を選択してください").
+		SetFilename("prokishi.ini").
+		AddFilter("INI ファイル (*.ini)", "*.ini").
+		AddFilter("すべてのファイル", "*.*").
+		PromptForSingleSelection()
+	if err != nil {
+		return xerrors.Errorf("SaveFileDialog error: %w", err)
+	}
+	if path == "" {
+		return nil // キャンセル
+	}
+	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+		return xerrors.Errorf("WriteFile error: %w", err)
+	}
+	return nil
 }
 
 func (a *AdminService) SelectEnginePath() (string, error) {
