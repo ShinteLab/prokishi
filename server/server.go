@@ -19,7 +19,7 @@ import (
 	"google.golang.org/grpc"
 )
 
-func Run(host string, port int, opts ...Option) error {
+func Run(ctx context.Context, host string, port int, opts ...Option) error {
 
 	addr := net.JoinHostPort(host, strconv.Itoa(port))
 	listener, err := net.Listen("tcp", addr)
@@ -33,7 +33,7 @@ func Run(host string, port int, opts ...Option) error {
 	fmt.Println("Listener Address:", listener.Addr())
 
 	s := grpc.NewServer()
-	srv := RegisterServiceServer(s)
+	RegisterServiceServer(s)
 
 	go func() {
 		err := s.Serve(listener)
@@ -42,7 +42,12 @@ func Run(host string, port int, opts ...Option) error {
 		}
 	}()
 
-	srv.Wait()
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, os.Interrupt)
+	select {
+	case <-ctx.Done():
+	case <-quit:
+	}
 
 	s.GracefulStop()
 	return nil
@@ -157,8 +162,3 @@ func (s *Server) startEngine(id string) (string, error) {
 	return rtn, nil
 }
 
-func (s *Server) Wait() {
-	quit := make(chan os.Signal, 1)
-	signal.Notify(quit, os.Interrupt)
-	<-quit
-}
