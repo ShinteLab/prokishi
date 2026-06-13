@@ -8,6 +8,7 @@ import (
 	"log"
 	"log/slog"
 	"os"
+	"os/signal"
 	"prokishi"
 	"prokishi/db"
 	"prokishi/registry"
@@ -169,6 +170,15 @@ func runUI(serverSvc *ServerService, reg *registry.Registry) error {
 			slog.Error("autoStart failed", "err", err)
 		}
 	}
+
+	// Ctrl+C などの OS シグナルでアプリを終了させる（wails3 dev 終了時など）
+	go func() {
+		quit := make(chan os.Signal, 1)
+		signal.Notify(quit, os.Interrupt)
+		<-quit
+		serverSvc.Stop()
+		app.Quit()
+	}()
 
 	err := app.Run()
 	if err != nil {
