@@ -20,6 +20,7 @@ type EngineItem struct {
 
 type CodeItem struct {
 	Code     string `json:"code"`
+	Name     string `json:"name"`
 	Created  string `json:"created"`
 	Used     string `json:"used"`
 	Disabled bool   `json:"disabled"`
@@ -73,6 +74,7 @@ func (a *AdminService) ListCodes() ([]CodeItem, error) {
 		}
 		items = append(items, CodeItem{
 			Code:     c.Code,
+			Name:     c.Name,
 			Created:  c.Created.Format("2006-01-02 15:04:05"),
 			Used:     used,
 			Disabled: c.Disabled,
@@ -81,16 +83,20 @@ func (a *AdminService) ListCodes() ([]CodeItem, error) {
 	return items, nil
 }
 
-func (a *AdminService) GenerateCode() (string, error) {
+func (a *AdminService) GenerateCode(name string) (string, error) {
 	code := uuid.New().String()
-	if err := db.InsertCode(code); err != nil {
+	if err := db.InsertCode(code, name); err != nil {
 		return "", xerrors.Errorf("db.InsertCode() error: %w", err)
 	}
 	return code, nil
 }
 
-func (a *AdminService) RegisterCode(code string) error {
-	return db.InsertCode(code)
+func (a *AdminService) RegisterCode(code, name string) error {
+	return db.InsertCode(code, name)
+}
+
+func (a *AdminService) UpdateCodeName(code, name string) error {
+	return db.UpdateCodeName(code, name)
 }
 
 func (a *AdminService) DeleteCode(code string) error {

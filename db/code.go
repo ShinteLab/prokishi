@@ -10,8 +10,8 @@ import (
 	"golang.org/x/xerrors"
 )
 
-const CodesColumns = "code,created_date,updated_date,disabled"
-const CodesSelect = "SELECT code,DATETIME(created_date),DATETIME(updated_date),disabled FROM codes"
+const CodesColumns = "code,created_date,updated_date,disabled,name"
+const CodesSelect = "SELECT code,DATETIME(created_date),DATETIME(updated_date),disabled,name FROM codes"
 const CodesCount = "SELECT COUNT(code) FROM codes WHERE disabled IS NULL OR disabled <> 'true'"
 
 type Code struct {
@@ -19,12 +19,14 @@ type Code struct {
 	Created  time.Time
 	Updated  time.Time
 	Disabled bool
+	Name     string
 }
 
 func createCode(row scanner) (*Code, error) {
 	var c Code
 	var disabled sql.NullString
-	err := row.Scan(&c.Code, &c.Created, &c.Updated, &disabled)
+	var name sql.NullString
+	err := row.Scan(&c.Code, &c.Created, &c.Updated, &disabled, &name)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, nil
@@ -32,6 +34,7 @@ func createCode(row scanner) (*Code, error) {
 		return nil, xerrors.Errorf("Scan() error: %w", err)
 	}
 	c.Disabled = disabled.Valid && disabled.String == "true"
+	c.Name = name.String
 	return &c, nil
 }
 
@@ -80,12 +83,20 @@ func FindCodes(ctx context.Context) ([]*Code, error) {
 	return codes, nil
 }
 
-func InsertCode(code string) error {
+func InsertCode(code, name string) error {
 	now := time.Now()
 	zero := time.Time{}
-	s := fmt.Sprintf("INSERT INTO codes (%s) VALUES (?,?,?,?)", CodesColumns)
-	err := run(s, code, now, zero, "")
+	s := fmt.Sprintf("INSERT INTO codes (%s) VALUES (?,?,?,?,?)", CodesColumns)
+	err := run(s, code, now, zero, "", name)
 	if err != nil {
+		return xerrors.Errorf("run() error: %w", err)
+	}
+	return nil
+}
+
+func UpdateCodeName(code, name string) error {
+	s := "UPDATE codes SET name = ? WHERE code = ?"
+	if err := run(s, name, code); err != nil {
 		return xerrors.Errorf("run() error: %w", err)
 	}
 	return nil

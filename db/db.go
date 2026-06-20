@@ -164,7 +164,10 @@ func migrateCSVColumn(path, column string) {
 	os.WriteFile(path, []byte(result), 0644)
 }
 
-func migrateCodesColumns(path string)   { migrateCSVColumn(path, "disabled") }
+func migrateCodesColumns(path string) {
+	migrateCSVColumn(path, "disabled")
+	migrateCSVColumn(path, "name")
+}
 func migrateEnginesColumns(path string) { migrateCSVColumn(path, "name") }
 
 func createTableFile(fn string, cols string) error {

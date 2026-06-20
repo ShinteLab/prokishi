@@ -23,7 +23,7 @@ import { Events } from '@wailsio/runtime'
 import { AdminService, ServerService } from '../bindings/wails'
 
 type EngineItem = { id: string; name: string; path: string; created: string }
-type CodeItem = { code: string; created: string; used: string; disabled: boolean }
+type CodeItem = { code: string; name: string; created: string; used: string; disabled: boolean }
 type ServerConfig = { host: string; port: number; autoStart: boolean }
 type ServerState = { running: boolean; url: string }
 type Severity = 'success' | 'error'
@@ -37,6 +37,8 @@ export function MasterView() {
   const [engineName, setEngineName] = useState('')
   const [editingName, setEditingName] = useState<{ id: string; value: string } | null>(null)
   const [codeInput, setCodeInput] = useState('')
+  const [codeName, setCodeName] = useState('')
+  const [editingCode, setEditingCode] = useState<{ code: string; value: string } | null>(null)
   const [loadingEngines, setLoadingEngines] = useState(false)
   const [loadingCodes, setLoadingCodes] = useState(false)
   // サーバ設定
@@ -158,16 +160,22 @@ export function MasterView() {
   }
 
   const handleGenerateCode = () => {
-    AdminService.GenerateCode()
-      .then((code: any) => { notify(`生成しました: ${code}`); loadCodes() })
+    AdminService.GenerateCode(codeName.trim())
+      .then((code: any) => { notify(`生成しました: ${code}`); setCodeName(''); loadCodes() })
       .catch((e: any) => notify(String(e), 'error'))
   }
 
   const handleRegisterCode = () => {
     const code = codeInput.trim()
     if (!code) return
-    AdminService.RegisterCode(code)
-      .then(() => { notify('登録しました'); setCodeInput(''); loadCodes() })
+    AdminService.RegisterCode(code, codeName.trim())
+      .then(() => { notify('登録しました'); setCodeInput(''); setCodeName(''); loadCodes() })
+      .catch((e: any) => notify(String(e), 'error'))
+  }
+
+  const handleSaveCodeName = (code: string, name: string) => {
+    AdminService.UpdateCodeName(code, name)
+      .then(() => { setEditingCode(null); loadCodes() })
       .catch((e: any) => notify(String(e), 'error'))
   }
 
@@ -403,12 +411,20 @@ export function MasterView() {
           {/* 認証コード管理タブ */}
           {tab === 2 && (
             <Box>
-              <Box sx={{ display: 'flex', gap: 1, mb: 2, alignItems: 'center' }}>
+              <Box sx={{ display: 'flex', gap: 1, mb: 1, alignItems: 'center' }}>
                 <TextField
                   size="small" fullWidth label="認証コード" value={codeInput}
                   onChange={e => setCodeInput(e.target.value)}
                   onKeyDown={e => e.key === 'Enter' && handleRegisterCode()}
                   placeholder="任意のコード文字列"
+                />
+              </Box>
+              <Box sx={{ display: 'flex', gap: 1, mb: 2, alignItems: 'center' }}>
+                <TextField
+                  size="small" fullWidth label="名称 (任意)" value={codeName}
+                  onChange={e => setCodeName(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && handleRegisterCode()}
+                  placeholder="例: 山田太郎"
                 />
                 <Button variant="contained" startIcon={<AddIcon />} onClick={handleRegisterCode}
                   disabled={!codeInput.trim()} sx={{ whiteSpace: 'nowrap' }}>登録</Button>
@@ -422,7 +438,7 @@ export function MasterView() {
                 <Table size="small">
                   <TableHead>
                     <TableRow>
-                      <TableCell>コード</TableCell>
+                      <TableCell>名称 / コード</TableCell>
                       <TableCell>登録日時</TableCell>
                       <TableCell>最終使用</TableCell>
                       <TableCell sx={{ width: 90 }} />
@@ -435,15 +451,45 @@ export function MasterView() {
                       <TableRow><TableCell colSpan={4} align="center" sx={{ py: 3, color: 'text.disabled' }}>登録済みコードがありません</TableCell></TableRow>
                     ) : codes.map(c => (
                       <TableRow key={c.code} hover sx={c.disabled ? { opacity: 0.45 } : undefined}>
-                        <TableCell sx={{ ...monoCell, whiteSpace: 'nowrap' }}>
-                          {c.code}
-                          <Tooltip title="コピー">
-                            <IconButton size="small" onClick={() => copy(c.code)} sx={{ ml: 0.5, opacity: 0.5, '&:hover': { opacity: 1 } }}>
-                              <CopyIcon sx={{ fontSize: 13 }} />
-                            </IconButton>
-                          </Tooltip>
-                          {c.disabled && (
-                            <Chip label="停止中" size="small" color="warning" variant="outlined" sx={{ ml: 0.5, height: 16, fontSize: '0.65rem' }} />
+                        <TableCell sx={{ whiteSpace: 'nowrap' }}>
+                          {editingCode?.code === c.code ? (
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                              <TextField
+                                size="small" value={editingCode.value} autoFocus
+                                onChange={ev => setEditingCode({ code: c.code, value: ev.target.value })}
+                                onKeyDown={ev => {
+                                  if (ev.key === 'Enter') handleSaveCodeName(c.code, editingCode.value)
+                                  if (ev.key === 'Escape') setEditingCode(null)
+                                }}
+                                sx={{ width: 160 }}
+                              />
+                              <Button size="small" onClick={() => handleSaveCodeName(c.code, editingCode.value)}>保存</Button>
+                              <Button size="small" color="inherit" onClick={() => setEditingCode(null)}>取消</Button>
+                            </Box>
+                          ) : (
+                            <Box>
+                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                <Typography sx={{ fontSize: '0.875rem', fontWeight: c.name ? 500 : 'normal', color: c.name ? 'text.primary' : 'text.disabled' }}>
+                                  {c.name || '(名称未設定)'}
+                                </Typography>
+                                <Tooltip title="名称を編集">
+                                  <IconButton size="small" onClick={() => setEditingCode({ code: c.code, value: c.name })} sx={{ opacity: 0.4, '&:hover': { opacity: 1 } }}>
+                                    <span style={{ fontSize: 11 }}>✏️</span>
+                                  </IconButton>
+                                </Tooltip>
+                                {c.disabled && (
+                                  <Chip label="停止中" size="small" color="warning" variant="outlined" sx={{ height: 16, fontSize: '0.65rem' }} />
+                                )}
+                              </Box>
+                              <Box sx={{ ...monoCell, display: 'flex', alignItems: 'center', gap: 0.3 }}>
+                                {c.code}
+                                <Tooltip title="コピー">
+                                  <IconButton size="small" onClick={() => copy(c.code)} sx={{ opacity: 0.5, '&:hover': { opacity: 1 } }}>
+                                    <CopyIcon sx={{ fontSize: 12 }} />
+                                  </IconButton>
+                                </Tooltip>
+                              </Box>
+                            </Box>
                           )}
                         </TableCell>
                         <TableCell sx={subCell}>{c.created}</TableCell>

@@ -12,11 +12,11 @@ import (
 
 func GenerateCode() error {
 	uid := uuid.New()
-	return db.InsertCode(uid.String())
+	return db.InsertCode(uid.String(), "")
 }
 
 func RegisterCode(code string) error {
-	return db.InsertCode(code)
+	return db.InsertCode(code, "")
 }
 
 func PrintCodes() error {
