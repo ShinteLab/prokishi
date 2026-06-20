@@ -21,12 +21,22 @@ export function GetConfig() {
 }
 
 /**
+ * GetLocalIPs はループバックを除く IPv4 アドレス一覧を返す。
+ * @returns {$CancellablePromise<string[]>}
+ */
+export function GetLocalIPs() {
+    return $Call.ByID(4208826961).then(/** @type {($result: any) => any} */(($result) => {
+        return $$createType1($result);
+    }));
+}
+
+/**
  * GetState は現在の状態をまとめて返す（フロントエンド初期化用）。
  * @returns {$CancellablePromise<$models.ServerStateEvent>}
  */
 export function GetState() {
     return $Call.ByID(3232216287).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType1($result);
+        return $$createType2($result);
     }));
 }
 
@@ -79,4 +89,5 @@ export function Stop() {
 
 // Private type creation functions
 const $$createType0 = $models.ServerConfig.createFrom;
-const $$createType1 = $models.ServerStateEvent.createFrom;
+const $$createType1 = $Create.Array($Create.Any);
+const $$createType2 = $models.ServerStateEvent.createFrom;

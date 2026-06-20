@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import {
-  Box, Button, Chip, Container, FormControlLabel, IconButton, MenuItem,
+  Box, Button, Chip, Container, Dialog, DialogActions, DialogContent,
+  DialogTitle, FormControlLabel, IconButton, MenuItem,
   Paper, Snackbar, Alert, Select, Switch, Tab, Tabs, Table, TableBody,
   TableCell, TableContainer, TableHead, TableRow, TextField, Tooltip,
   CircularProgress, Typography, InputLabel, FormControl,
@@ -8,6 +9,8 @@ import {
 import {
   Add as AddIcon,
   AutoFixHigh as GenerateIcon,
+  Block as BlockIcon,
+  CheckCircleOutlined as EnableIcon,
   ContentCopy as CopyIcon,
   Delete as DeleteIcon,
   Download as DownloadIcon,
@@ -19,8 +22,8 @@ import {
 import { Events } from '@wailsio/runtime'
 import { AdminService, ServerService } from '../bindings/wails'
 
-type EngineItem = { id: string; path: string; created: string }
-type CodeItem = { code: string; created: string; used: string }
+type EngineItem = { id: string; name: string; path: string; created: string }
+type CodeItem = { code: string; created: string; used: string; disabled: boolean }
 type ServerConfig = { host: string; port: number; autoStart: boolean }
 type ServerState = { running: boolean; url: string }
 type Severity = 'success' | 'error'
@@ -31,6 +34,8 @@ export function MasterView() {
   const [engines, setEngines] = useState<EngineItem[]>([])
   const [codes, setCodes] = useState<CodeItem[]>([])
   const [enginePath, setEnginePath] = useState('')
+  const [engineName, setEngineName] = useState('')
+  const [editingName, setEditingName] = useState<{ id: string; value: string } | null>(null)
   const [codeInput, setCodeInput] = useState('')
   const [loadingEngines, setLoadingEngines] = useState(false)
   const [loadingCodes, setLoadingCodes] = useState(false)
@@ -39,6 +44,7 @@ export function MasterView() {
   const [cfg, setCfg] = useState<ServerConfig>({ host: '', port: 8080, autoStart: true })
   const [cfgDirty, setCfgDirty] = useState(false)
   const [savingCfg, setSavingCfg] = useState(false)
+  const [localIPs, setLocalIPs] = useState<string[]>([])
   // クライアント設定
   const [clientHost, setClientHost] = useState('localhost')
   const [clientPort, setClientPort] = useState(8080)
@@ -47,8 +53,12 @@ export function MasterView() {
   const [clientLogLevel, setClientLogLevel] = useState('warn')
   // 共通
   const [snack, setSnack] = useState<{ msg: string; sev: Severity } | null>(null)
+  const [errorDialog, setErrorDialog] = useState<string | null>(null)
 
-  const notify = (msg: string, sev: Severity = 'success') => setSnack({ msg, sev })
+  const notify = (msg: string, sev: Severity = 'success') => {
+    if (sev === 'error') { setErrorDialog(msg); return }
+    setSnack({ msg, sev })
+  }
 
   // --- サーバ設定 ---
   useEffect(() => {
@@ -56,6 +66,7 @@ export function MasterView() {
     ServerService.GetConfig().then((c: any) => {
       if (c) { setCfg(c); setClientPort(c.port ?? 8080) }
     }).catch(() => {})
+    ServerService.GetLocalIPs().then((ips: any) => setLocalIPs(ips ?? [])).catch(() => {})
 
     const unsub = Events.On('server-state', (e: any) => {
       const s: ServerState = e.data
@@ -129,8 +140,14 @@ export function MasterView() {
   const handleRegisterEngine = () => {
     const path = enginePath.trim()
     if (!path) return
-    AdminService.RegisterEngine(path)
-      .then((id: any) => { notify(`登録しました: ${id}`); setEnginePath(''); loadEngines() })
+    AdminService.RegisterEngine(path, engineName.trim())
+      .then((id: any) => { notify(`登録しました: ${id}`); setEnginePath(''); setEngineName(''); loadEngines() })
+      .catch((e: any) => notify(String(e), 'error'))
+  }
+
+  const handleSaveEngineName = (id: string, name: string) => {
+    AdminService.UpdateEngineName(id, name)
+      .then(() => { setEditingName(null); loadEngines() })
       .catch((e: any) => notify(String(e), 'error'))
   }
 
@@ -160,6 +177,18 @@ export function MasterView() {
       .catch((e: any) => notify(String(e), 'error'))
   }
 
+  const handleDisableCode = (code: string) => {
+    AdminService.DisableCode(code)
+      .then(() => { notify('停止しました'); loadCodes() })
+      .catch((e: any) => notify(String(e), 'error'))
+  }
+
+  const handleEnableCode = (code: string) => {
+    AdminService.EnableCode(code)
+      .then(() => { notify('有効にしました'); loadCodes() })
+      .catch((e: any) => notify(String(e), 'error'))
+  }
+
   const monoCell = { fontFamily: 'monospace', fontSize: '0.75rem', color: 'primary.light' } as const
   const subCell = { color: 'text.secondary', fontSize: '0.75rem' } as const
 
@@ -178,7 +207,7 @@ export function MasterView() {
           {tab === 0 && (
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
               {/* 状態 */}
-              <Paper variant="outlined" sx={{ p: 2 }}>
+              <Paper variant="outlined" sx={{ p: 2, display: 'flex', flexDirection: 'column', gap: 1.5 }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
                   <Chip
                     label={serverState.running ? '起動中' : '停止中'}
@@ -186,18 +215,6 @@ export function MasterView() {
                     size="small"
                     variant={serverState.running ? 'filled' : 'outlined'}
                   />
-                  {serverState.running && serverState.url && (
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                      <Typography sx={{ fontFamily: 'monospace', fontSize: '0.85rem', color: 'success.light' }}>
-                        {serverState.url}
-                      </Typography>
-                      <Tooltip title="URLをコピー">
-                        <IconButton size="small" onClick={() => copy(serverState.url)} sx={{ opacity: 0.6, '&:hover': { opacity: 1 } }}>
-                          <CopyIcon sx={{ fontSize: 13 }} />
-                        </IconButton>
-                      </Tooltip>
-                    </Box>
-                  )}
                   <Box sx={{ ml: 'auto', display: 'flex', gap: 1 }}>
                     {!serverState.running ? (
                       <Button variant="contained" color="success" startIcon={<StartIcon />} onClick={handleStart} size="small">
@@ -210,6 +227,31 @@ export function MasterView() {
                     )}
                   </Box>
                 </Box>
+                {serverState.running && (() => {
+                  // host が空 = 0.0.0.0（全IF）→ ローカルIP一覧を表示
+                  // host が設定済み → その値だけを表示（localhostならlocalhostのまま）
+                  const hosts = cfg.host ? [cfg.host] : localIPs
+                  if (hosts.length === 0) return null
+                  return (
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                      <Typography variant="caption" sx={{ color: 'text.disabled' }}>
+                        クライアントの接続先 (prokishi.ini の host に設定)
+                      </Typography>
+                      {hosts.map(h => (
+                        <Box key={h} sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                          <Typography sx={{ fontFamily: 'monospace', fontSize: '0.85rem', color: 'success.light' }}>
+                            {h}:{cfg.port}
+                          </Typography>
+                          <Tooltip title="host をコピー">
+                            <IconButton size="small" onClick={() => copy(h)} sx={{ opacity: 0.5, '&:hover': { opacity: 1 } }}>
+                              <CopyIcon sx={{ fontSize: 13 }} />
+                            </IconButton>
+                          </Tooltip>
+                        </Box>
+                      ))}
+                    </Box>
+                  )
+                })()}
               </Paper>
 
               {/* 設定フォーム */}
@@ -264,7 +306,7 @@ export function MasterView() {
           {/* エンジン管理タブ */}
           {tab === 1 && (
             <Box>
-              <Box sx={{ display: 'flex', gap: 1, mb: 2, alignItems: 'center' }}>
+              <Box sx={{ display: 'flex', gap: 1, mb: 1, alignItems: 'center' }}>
                 <TextField
                   size="small" fullWidth label="エンジンのパス" value={enginePath}
                   onChange={e => setEnginePath(e.target.value)}
@@ -274,6 +316,14 @@ export function MasterView() {
                 <Tooltip title="ファイルを選択">
                   <IconButton onClick={handleSelectFile} color="primary"><FolderOpenIcon /></IconButton>
                 </Tooltip>
+              </Box>
+              <Box sx={{ display: 'flex', gap: 1, mb: 2, alignItems: 'center' }}>
+                <TextField
+                  size="small" fullWidth label="名称 (任意)" value={engineName}
+                  onChange={e => setEngineName(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && handleRegisterEngine()}
+                  placeholder="例: Apery WCSC"
+                />
                 <Button variant="contained" startIcon={<AddIcon />} onClick={handleRegisterEngine}
                   disabled={!enginePath.trim()} sx={{ whiteSpace: 'nowrap' }}>登録</Button>
                 <Tooltip title="更新">
@@ -284,7 +334,7 @@ export function MasterView() {
                 <Table size="small">
                   <TableHead>
                     <TableRow>
-                      <TableCell>ID</TableCell>
+                      <TableCell>名称 / ID</TableCell>
                       <TableCell>パス</TableCell>
                       <TableCell>登録日時</TableCell>
                       <TableCell sx={{ width: 60 }} />
@@ -297,15 +347,45 @@ export function MasterView() {
                       <TableRow><TableCell colSpan={4} align="center" sx={{ py: 3, color: 'text.disabled' }}>登録済みエンジンがありません</TableCell></TableRow>
                     ) : engines.map(e => (
                       <TableRow key={e.id} hover>
-                        <TableCell sx={{ ...monoCell, whiteSpace: 'nowrap' }}>
-                          {e.id}
-                          <Tooltip title="コピー">
-                            <IconButton size="small" onClick={() => copy(e.id)} sx={{ ml: 0.5, opacity: 0.5, '&:hover': { opacity: 1 } }}>
-                              <CopyIcon sx={{ fontSize: 13 }} />
-                            </IconButton>
-                          </Tooltip>
+                        <TableCell sx={{ whiteSpace: 'nowrap' }}>
+                          {editingName?.id === e.id ? (
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                              <TextField
+                                size="small" value={editingName.value} autoFocus
+                                onChange={ev => setEditingName({ id: e.id, value: ev.target.value })}
+                                onKeyDown={ev => {
+                                  if (ev.key === 'Enter') handleSaveEngineName(e.id, editingName.value)
+                                  if (ev.key === 'Escape') setEditingName(null)
+                                }}
+                                sx={{ width: 160 }}
+                              />
+                              <Button size="small" onClick={() => handleSaveEngineName(e.id, editingName.value)}>保存</Button>
+                              <Button size="small" color="inherit" onClick={() => setEditingName(null)}>取消</Button>
+                            </Box>
+                          ) : (
+                            <Box>
+                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                <Typography sx={{ fontSize: '0.875rem', fontWeight: e.name ? 500 : 'normal', color: e.name ? 'text.primary' : 'text.disabled' }}>
+                                  {e.name || '(名称未設定)'}
+                                </Typography>
+                                <Tooltip title="名称を編集">
+                                  <IconButton size="small" onClick={() => setEditingName({ id: e.id, value: e.name })} sx={{ opacity: 0.4, '&:hover': { opacity: 1 } }}>
+                                    <span style={{ fontSize: 11 }}>✏️</span>
+                                  </IconButton>
+                                </Tooltip>
+                              </Box>
+                              <Box sx={{ ...monoCell, display: 'flex', alignItems: 'center', gap: 0.3 }}>
+                                {e.id}
+                                <Tooltip title="IDをコピー">
+                                  <IconButton size="small" onClick={() => copy(e.id)} sx={{ opacity: 0.5, '&:hover': { opacity: 1 } }}>
+                                    <CopyIcon sx={{ fontSize: 12 }} />
+                                  </IconButton>
+                                </Tooltip>
+                              </Box>
+                            </Box>
+                          )}
                         </TableCell>
-                        <TableCell>{e.path}</TableCell>
+                        <TableCell sx={{ color: 'text.secondary', fontSize: '0.78rem' }}>{e.path}</TableCell>
                         <TableCell sx={subCell}>{e.created}</TableCell>
                         <TableCell>
                           <Tooltip title="削除">
@@ -345,7 +425,7 @@ export function MasterView() {
                       <TableCell>コード</TableCell>
                       <TableCell>登録日時</TableCell>
                       <TableCell>最終使用</TableCell>
-                      <TableCell sx={{ width: 60 }} />
+                      <TableCell sx={{ width: 90 }} />
                     </TableRow>
                   </TableHead>
                   <TableBody>
@@ -354,7 +434,7 @@ export function MasterView() {
                     ) : codes.length === 0 ? (
                       <TableRow><TableCell colSpan={4} align="center" sx={{ py: 3, color: 'text.disabled' }}>登録済みコードがありません</TableCell></TableRow>
                     ) : codes.map(c => (
-                      <TableRow key={c.code} hover>
+                      <TableRow key={c.code} hover sx={c.disabled ? { opacity: 0.45 } : undefined}>
                         <TableCell sx={{ ...monoCell, whiteSpace: 'nowrap' }}>
                           {c.code}
                           <Tooltip title="コピー">
@@ -362,10 +442,22 @@ export function MasterView() {
                               <CopyIcon sx={{ fontSize: 13 }} />
                             </IconButton>
                           </Tooltip>
+                          {c.disabled && (
+                            <Chip label="停止中" size="small" color="warning" variant="outlined" sx={{ ml: 0.5, height: 16, fontSize: '0.65rem' }} />
+                          )}
                         </TableCell>
                         <TableCell sx={subCell}>{c.created}</TableCell>
                         <TableCell sx={subCell}>{c.used || '—'}</TableCell>
-                        <TableCell>
+                        <TableCell sx={{ whiteSpace: 'nowrap' }}>
+                          {c.disabled ? (
+                            <Tooltip title="有効にする">
+                              <IconButton size="small" color="success" onClick={() => handleEnableCode(c.code)}><EnableIcon fontSize="small" /></IconButton>
+                            </Tooltip>
+                          ) : (
+                            <Tooltip title="停止">
+                              <IconButton size="small" color="warning" onClick={() => handleDisableCode(c.code)}><BlockIcon fontSize="small" /></IconButton>
+                            </Tooltip>
+                          )}
                           <Tooltip title="削除">
                             <IconButton size="small" color="error" onClick={() => handleDeleteCode(c.code)}><DeleteIcon fontSize="small" /></IconButton>
                           </Tooltip>
@@ -416,8 +508,10 @@ export function MasterView() {
                     {engines.map(e => (
                       <MenuItem key={e.id} value={e.id}>
                         <Box sx={{ display: 'flex', flexDirection: 'column' }}>
-                          <Typography sx={{ fontFamily: 'monospace', fontSize: '0.75rem' }}>{e.id}</Typography>
-                          <Typography sx={{ fontSize: '0.7rem', color: 'text.secondary' }}>{e.path}</Typography>
+                          <Typography sx={{ fontSize: '0.85rem', fontWeight: e.name ? 500 : 'normal' }}>
+                            {e.name || e.path.split('\\').pop()}
+                          </Typography>
+                          <Typography sx={{ fontFamily: 'monospace', fontSize: '0.7rem', color: 'text.secondary' }}>{e.id}</Typography>
                         </Box>
                       </MenuItem>
                     ))}
@@ -485,6 +579,27 @@ export function MasterView() {
           {snack?.msg}
         </Alert>
       </Snackbar>
+
+      <Dialog open={!!errorDialog} onClose={() => setErrorDialog(null)} maxWidth="sm" fullWidth>
+        <DialogTitle sx={{ color: 'error.main' }}>エラー</DialogTitle>
+        <DialogContent>
+          <Box
+            component="pre"
+            sx={{
+              fontFamily: 'monospace', fontSize: '0.78rem', whiteSpace: 'pre-wrap',
+              wordBreak: 'break-all', userSelect: 'text', m: 0,
+              bgcolor: 'background.default', p: 1.5, borderRadius: 1,
+              border: '1px solid', borderColor: 'divider',
+            }}
+          >
+            {errorDialog}
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => navigator.clipboard.writeText(errorDialog ?? '')} size="small">コピー</Button>
+          <Button onClick={() => setErrorDialog(null)} variant="contained" size="small">閉じる</Button>
+        </DialogActions>
+      </Dialog>
     </>
   )
 }

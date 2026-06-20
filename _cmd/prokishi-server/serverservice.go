@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"net"
 	"os"
 	"path/filepath"
 	"prokishi"
@@ -156,6 +157,40 @@ func (s *ServerService) emit(running bool, url string) {
 	if s.app != nil {
 		s.app.Event.Emit("server-state", ServerStateEvent{Running: running, URL: url})
 	}
+}
+
+// GetLocalIPs はループバックを除く IPv4 アドレス一覧を返す。
+func (s *ServerService) GetLocalIPs() []string {
+	var result []string
+	ifaces, err := net.Interfaces()
+	if err != nil {
+		return result
+	}
+	for _, iface := range ifaces {
+		if iface.Flags&net.FlagUp == 0 {
+			continue
+		}
+		addrs, err := iface.Addrs()
+		if err != nil {
+			continue
+		}
+		for _, addr := range addrs {
+			var ip net.IP
+			switch v := addr.(type) {
+			case *net.IPNet:
+				ip = v.IP
+			case *net.IPAddr:
+				ip = v.IP
+			}
+			if ip == nil || ip.IsLoopback() {
+				continue
+			}
+			if ip.To4() != nil {
+				result = append(result, ip.String())
+			}
+		}
+	}
+	return result
 }
 
 // GetState は現在の状態をまとめて返す（フロントエンド初期化用）。

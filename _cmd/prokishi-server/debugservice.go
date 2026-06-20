@@ -8,6 +8,7 @@ import (
 type ConnectionInfo struct {
 	ID          string `json:"id"`
 	EngineID    string `json:"engineId"`
+	EngineName  string `json:"engineName"`
 	EnginePath  string `json:"enginePath"`
 	ConnectedAt string `json:"connectedAt"`
 }
@@ -29,6 +30,7 @@ func (s *DebugService) ListConnections() []ConnectionInfo {
 		result[i] = ConnectionInfo{
 			ID:          c.ID,
 			EngineID:    c.EngineID,
+			EngineName:  c.EngineName,
 			EnginePath:  c.EnginePath,
 			ConnectedAt: c.ConnectedAt.Format(time.RFC3339),
 		}

@@ -28,10 +28,7 @@ func Run(ctx context.Context, host string, port int, opts ...Option) error {
 		return xerrors.Errorf("net.Listen() error: %w", err)
 	}
 
-	fmt.Println("IP Address ====================")
-	printIPs()
-	fmt.Println("===============================")
-	fmt.Println("Listener Address:", listener.Addr())
+	slog.Info("server listening", "addr", listener.Addr())
 
 	s := grpc.NewServer()
 
@@ -63,39 +60,6 @@ func Run(ctx context.Context, host string, port int, opts ...Option) error {
 	return nil
 }
 
-func printIPs() {
-	ift, err := net.Interfaces()
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-
-	for _, ifi := range ift {
-		addrs, err := ifi.Addrs()
-		if err != nil {
-			fmt.Println(err)
-			continue
-		}
-
-		for _, addr := range addrs {
-			ip := getIP(addr)
-			if !ip.IsLoopback() {
-				fmt.Printf("%v\n", ip)
-			}
-		}
-	}
-}
-
-func getIP(addr net.Addr) net.IP {
-	var ip net.IP
-	switch v := addr.(type) {
-	case *net.IPNet:
-		ip = v.IP
-	case *net.IPAddr:
-		ip = v.IP
-	}
-	return ip
-}
 
 type Server struct {
 	api.ConnectionServiceServer
@@ -148,29 +112,29 @@ func (s *Server) verifyAuthentication(code string) bool {
 	return true
 }
 
-// コネクションIDでエンジンを実行し登録する。connID と enginePath を返す。
-func (s *Server) startEngine(engineID string) (connID string, enginePath string, err error) {
+// コネクションIDでエンジンを実行し登録する。connID, engineName, enginePath を返す。
+func (s *Server) startEngine(engineID string) (connID string, engineName string, enginePath string, err error) {
 
 	if engineID == "" {
-		return "", "", fmt.Errorf("EngineId required.")
+		return "", "", "", fmt.Errorf("EngineId required.")
 	}
 
 	e, dbErr := db.SelectEngine(context.Background(), engineID)
 	if dbErr != nil {
-		return "", "", xerrors.Errorf("db.SelectEngine() error: %w", dbErr)
+		return "", "", "", xerrors.Errorf("db.SelectEngine() error: %w", dbErr)
 	}
 	if e == nil {
-		return "", "", xerrors.Errorf("Engine is Not Found:[%s]", engineID)
+		return "", "", "", xerrors.Errorf("Engine is Not Found:[%s]", engineID)
 	}
 
 	engine, newErr := usi.NewSender(e.Path)
 	if newErr != nil {
-		return "", "", xerrors.Errorf("usi.NewSender() error: %w", newErr)
+		return "", "", "", xerrors.Errorf("usi.NewSender() error: %w", newErr)
 	}
 
 	uid := uuid.New()
 	connID = uid.String()
 	s.engines.Store(connID, engine)
-	return connID, e.Path, nil
+	return connID, e.Name, e.Path, nil
 }
 

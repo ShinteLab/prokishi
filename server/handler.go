@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"prokishi/api"
+	"prokishi/db"
 	"prokishi/registry"
 	"prokishi/usi"
 
@@ -20,7 +21,13 @@ func (s *Server) Connection(ctx context.Context, r *api.ConnectionRequest) (*api
 		return nil, fmt.Errorf("can not be verified")
 	}
 
-	connID, enginePath, err := s.startEngine(r.EngineId)
+	if r.Code != "" {
+		if err := db.UpdateCode(r.Code); err != nil {
+			slog.Warn("UpdateCode failed", "err", err)
+		}
+	}
+
+	connID, engineName, enginePath, err := s.startEngine(r.EngineId)
 	if err != nil {
 		return nil, xerrors.Errorf("startEngine() error: %w", err)
 	}
@@ -31,6 +38,7 @@ func (s *Server) Connection(ctx context.Context, r *api.ConnectionRequest) (*api
 		s.registry.Add(registry.Connection{
 			ID:          connID,
 			EngineID:    r.EngineId,
+			EngineName:  engineName,
 			EnginePath:  enginePath,
 			ConnectedAt: time.Now(),
 		})

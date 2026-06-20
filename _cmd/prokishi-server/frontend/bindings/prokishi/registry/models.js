@@ -30,6 +30,13 @@ export class Connection {
              */
             this["engineId"] = "";
         }
+        if (!("engineName" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["engineName"] = "";
+        }
         if (!("enginePath" in $$source)) {
             /**
              * @member

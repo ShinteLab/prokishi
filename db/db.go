@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"prokishi"
 
@@ -101,18 +102,70 @@ func initTables(dir string) error {
 		if err != nil {
 			return xerrors.Errorf("createTables(codes) error: %w", err)
 		}
+	} else {
+		migrateCodesColumns(cp)
 	}
 
 	ep := filepath.Join(dir, "engines.csv")
 	if _, err := os.Stat(ep); err != nil {
 		err = createTableFile(ep, EnginesColumns)
 		if err != nil {
-			return xerrors.Errorf("createTables(codes) error: %w", err)
+			return xerrors.Errorf("createTables(engines) error: %w", err)
 		}
+	} else {
+		migrateEnginesColumns(ep)
 	}
 
 	return nil
 }
+
+func migrateCSVColumn(path, column string) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return
+	}
+
+	// CRLF 正規化
+	content := strings.ReplaceAll(string(data), "\r\n", "\n")
+	content = strings.ReplaceAll(content, "\r", "\n")
+
+	trailingNewline := strings.HasSuffix(content, "\n")
+	content = strings.TrimSuffix(content, "\n")
+	lines := strings.Split(content, "\n")
+	if len(lines) == 0 {
+		return
+	}
+
+	// ヘッダーに列名が既にあれば何もしない
+	for _, col := range strings.Split(lines[0], ",") {
+		if strings.TrimSpace(col) == column {
+			return
+		}
+	}
+
+	// 各行の末尾の空フィールドを除去してから新列を追加
+	for i, line := range lines {
+		parts := strings.Split(line, ",")
+		for len(parts) > 1 && parts[len(parts)-1] == "" {
+			parts = parts[:len(parts)-1]
+		}
+		if i == 0 {
+			parts = append(parts, column) // ヘッダーは列名を追加
+		} else {
+			parts = append(parts, "") // データ行は空値を追加
+		}
+		lines[i] = strings.Join(parts, ",")
+	}
+
+	result := strings.Join(lines, "\n")
+	if trailingNewline {
+		result += "\n"
+	}
+	os.WriteFile(path, []byte(result), 0644)
+}
+
+func migrateCodesColumns(path string)   { migrateCSVColumn(path, "disabled") }
+func migrateEnginesColumns(path string) { migrateCSVColumn(path, "name") }
 
 func createTableFile(fn string, cols string) error {
 	fp, err := os.Create(fn)

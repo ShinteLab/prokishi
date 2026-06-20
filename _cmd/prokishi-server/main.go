@@ -12,6 +12,7 @@ import (
 	"prokishi"
 	"prokishi/db"
 	"prokishi/registry"
+	"strings"
 	"time"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
@@ -22,7 +23,10 @@ import (
 //go:embed all:frontend/dist
 var assets embed.FS
 
-var version string
+//go:embed version
+var versionEmbed string
+
+var version = strings.TrimSpace(versionEmbed)
 
 var (
 	port    int
@@ -58,7 +62,7 @@ func main() {
 }
 
 func run() error {
-	dev := version == ""
+	dev := devMode
 
 	err := db.Init(dev)
 	if err != nil {

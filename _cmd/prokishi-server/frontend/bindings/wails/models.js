@@ -33,6 +33,13 @@ export class CodeItem {
              */
             this["used"] = "";
         }
+        if (!("disabled" in $$source)) {
+            /**
+             * @member
+             * @type {boolean}
+             */
+            this["disabled"] = false;
+        }
 
         Object.assign(this, $$source);
     }
@@ -67,6 +74,13 @@ export class ConnectionInfo {
              * @type {string}
              */
             this["engineId"] = "";
+        }
+        if (!("engineName" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["engineName"] = "";
         }
         if (!("enginePath" in $$source)) {
             /**
@@ -109,6 +123,13 @@ export class EngineItem {
              * @type {string}
              */
             this["id"] = "";
+        }
+        if (!("name" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["name"] = "";
         }
         if (!("path" in $$source)) {
             /**

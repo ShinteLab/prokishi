@@ -7,7 +7,7 @@ import WrapTextIcon from '@mui/icons-material/WrapText'
 import { Events } from '@wailsio/runtime'
 import { DebugService, ServerService } from '../bindings/wails'
 
-type ConnectionInfo = { id: string; engineId: string; enginePath: string; connectedAt: any; active?: boolean }
+type ConnectionInfo = { id: string; engineId: string; engineName: string; enginePath: string; connectedAt: any; active?: boolean }
 type LogEntryItem  = { timestamp: any; dir: number; message: string }
 type SendRange     = { from: number; to: number } | null
 type HighlightWin  = { from: number; to: number } | null
@@ -295,7 +295,7 @@ export function MonitorView() {
                   }
                   secondary={
                     <Typography sx={{ fontSize: '0.7rem', color: 'text.secondary', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {String(c.enginePath).split(/[\\/]/).pop()}
+                      {c.engineName || String(c.enginePath).split(/[\\/]/).pop()}
                     </Typography>
                   }
                 />
@@ -312,7 +312,7 @@ export function MonitorView() {
           <Box sx={{ flex: 1, overflow: 'hidden' }}>
             {selectedConn ? (
               <Typography variant="caption" sx={{ fontFamily: 'monospace', color: 'text.secondary', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'block' }}>
-                {selectedConn.id} &nbsp;|&nbsp; {selectedConn.enginePath}
+                {selectedConn.id} &nbsp;|&nbsp; {selectedConn.engineName || selectedConn.enginePath}
               </Typography>
             ) : (
               <Typography variant="caption" sx={{ color: 'text.disabled' }}>接続を選択してください</Typography>

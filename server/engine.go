@@ -13,7 +13,7 @@ import (
 func GenerateEngineId(p string) error {
 	uid := uuid.New()
 	id := uid.String()
-	err := db.InsertEngine(id, p)
+	err := db.InsertEngine(id, p, "")
 	if err != nil {
 		return xerrors.Errorf("db.InsertEngine() error: %w", err)
 	}
@@ -23,7 +23,7 @@ func GenerateEngineId(p string) error {
 
 func RegisterEngineId(id string, p string) error {
 
-	err := db.InsertEngine(id, p)
+	err := db.InsertEngine(id, p, "")
 	if err != nil {
 		return xerrors.Errorf("db.InsertEngine() error: %w", err)
 	}

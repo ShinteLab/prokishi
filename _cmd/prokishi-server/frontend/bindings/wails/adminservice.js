@@ -27,6 +27,22 @@ export function DeleteEngine(id) {
 }
 
 /**
+ * @param {string} code
+ * @returns {$CancellablePromise<void>}
+ */
+export function DisableCode(code) {
+    return $Call.ByID(3472157279, code);
+}
+
+/**
+ * @param {string} code
+ * @returns {$CancellablePromise<void>}
+ */
+export function EnableCode(code) {
+    return $Call.ByID(100507728, code);
+}
+
+/**
  * @returns {$CancellablePromise<string>}
  */
 export function GenerateCode() {
@@ -61,10 +77,11 @@ export function RegisterCode(code) {
 
 /**
  * @param {string} path
+ * @param {string} name
  * @returns {$CancellablePromise<string>}
  */
-export function RegisterEngine(path) {
-    return $Call.ByID(557474797, path);
+export function RegisterEngine(path, name) {
+    return $Call.ByID(557474797, path, name);
 }
 
 /**
@@ -85,6 +102,15 @@ export function SaveClientConfig(host, port, code, engineId, logLevel) {
  */
 export function SelectEnginePath() {
     return $Call.ByID(2300570047);
+}
+
+/**
+ * @param {string} id
+ * @param {string} name
+ * @returns {$CancellablePromise<void>}
+ */
+export function UpdateEngineName(id, name) {
+    return $Call.ByID(1687481118, id, name);
 }
 
 // Private type creation functions

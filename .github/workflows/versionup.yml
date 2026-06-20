@@ -1,0 +1,107 @@
+name: VersionUp
+
+on:
+  pull_request:
+    branches: ["main"]
+    types: [closed]
+
+jobs:
+
+  versionup:
+
+    # バージョンコミット自身のPRは除外（無限ループ防止）
+    if: |
+      github.event.pull_request.merged == true &&
+      !startsWith(github.event.pull_request.title, 'chore: version')
+
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+
+      - name: Checkout code
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.MY_GITHUB_TOKEN }}
+
+      - name: Install Linux dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libgtk-4-dev \
+            libwebkitgtk-6.0-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev
+
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: '1.25'
+
+      - name: Install Wails3
+        run: go install github.com/wailsapp/wails/v3/cmd/wails3@latest
+
+      - name: Determine and Bump Version
+        id: versioning
+        run: |
+          BASE_VERSION=$(cat _cmd/prokishi-server/version | xargs)
+          # タグが既に存在する場合のみパッチを+1する
+          if ! git rev-parse "v$BASE_VERSION" >/dev/null 2>&1; then
+            FINAL_VERSION="$BASE_VERSION"
+          else
+            PREFIX=${BASE_VERSION%.*}
+            PATCH=${BASE_VERSION##*.}
+            FINAL_VERSION="${PREFIX}.$((PATCH + 1))"
+          fi
+
+          go run _cmd/version.go $FINAL_VERSION
+          echo "NEW_VERSION=$FINAL_VERSION" >> $GITHUB_ENV
+
+      - name: Update Build Assets
+        run: |
+          cd _cmd/prokishi-server
+          wails3 update build-assets \
+            -name "prokishi-server" \
+            -binaryname "prokishi-server" \
+            -config build/config.yml \
+            -dir build
+
+      - name: Commit and Pull Request
+        run: |
+          git config --global user.name  "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+          BRANCH="chore/version-${{ env.NEW_VERSION }}"
+          git checkout -b $BRANCH
+          git add .
+
+          # 変更がなければスキップ
+          if git diff --cached --quiet; then
+            echo "No changes to commit. Skipping."
+            exit 0
+          fi
+
+          git commit -m "chore: version ${{ env.NEW_VERSION }}"
+          git push origin $BRANCH
+
+          gh pr create \
+            --title "chore: version ${{ env.NEW_VERSION }}" \
+            --body "Auto version bump to ${{ env.NEW_VERSION }}" \
+            --base main \
+            --head $BRANCH
+
+          gh pr merge $BRANCH --merge --delete-branch
+        env:
+          GH_TOKEN: ${{ secrets.MY_GITHUB_TOKEN }}
+
+      - name: Create Tag
+        run: |
+          NEW_TAG="v${{ env.NEW_VERSION }}"
+          if git rev-parse "$NEW_TAG" >/dev/null 2>&1; then
+            echo "Tag $NEW_TAG already exists. Skipping."
+            exit 0
+          fi
+          git tag $NEW_TAG
+          git push origin $NEW_TAG

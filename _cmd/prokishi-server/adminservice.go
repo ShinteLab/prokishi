@@ -13,14 +13,16 @@ import (
 
 type EngineItem struct {
 	ID      string `json:"id"`
+	Name    string `json:"name"`
 	Path    string `json:"path"`
 	Created string `json:"created"`
 }
 
 type CodeItem struct {
-	Code    string `json:"code"`
-	Created string `json:"created"`
-	Used    string `json:"used"`
+	Code     string `json:"code"`
+	Created  string `json:"created"`
+	Used     string `json:"used"`
+	Disabled bool   `json:"disabled"`
 }
 
 type AdminService struct{}
@@ -34,6 +36,7 @@ func (a *AdminService) ListEngines() ([]EngineItem, error) {
 	for _, e := range engines {
 		items = append(items, EngineItem{
 			ID:      e.ID,
+			Name:    e.Name,
 			Path:    e.Path,
 			Created: e.Created.Format("2006-01-02 15:04:05"),
 		})
@@ -41,12 +44,16 @@ func (a *AdminService) ListEngines() ([]EngineItem, error) {
 	return items, nil
 }
 
-func (a *AdminService) RegisterEngine(path string) (string, error) {
+func (a *AdminService) RegisterEngine(path string, name string) (string, error) {
 	id := uuid.New().String()
-	if err := db.InsertEngine(id, path); err != nil {
+	if err := db.InsertEngine(id, path, name); err != nil {
 		return "", xerrors.Errorf("db.InsertEngine() error: %w", err)
 	}
 	return id, nil
+}
+
+func (a *AdminService) UpdateEngineName(id string, name string) error {
+	return db.UpdateEngineName(id, name)
 }
 
 func (a *AdminService) DeleteEngine(id string) error {
@@ -65,9 +72,10 @@ func (a *AdminService) ListCodes() ([]CodeItem, error) {
 			used = c.Updated.Format("2006-01-02 15:04:05")
 		}
 		items = append(items, CodeItem{
-			Code:    c.Code,
-			Created: c.Created.Format("2006-01-02 15:04:05"),
-			Used:    used,
+			Code:     c.Code,
+			Created:  c.Created.Format("2006-01-02 15:04:05"),
+			Used:     used,
+			Disabled: c.Disabled,
 		})
 	}
 	return items, nil
@@ -87,6 +95,14 @@ func (a *AdminService) RegisterCode(code string) error {
 
 func (a *AdminService) DeleteCode(code string) error {
 	return db.DeleteCode(code)
+}
+
+func (a *AdminService) DisableCode(code string) error {
+	return db.DisableCode(code)
+}
+
+func (a *AdminService) EnableCode(code string) error {
+	return db.EnableCode(code)
 }
 
 // SaveClientConfig はクライアント設定ファイル (prokishi.ini) をファイル保存ダイアログで書き出す。

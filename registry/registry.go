@@ -21,6 +21,7 @@ type LogEntry struct {
 type Connection struct {
 	ID          string    `json:"id"`
 	EngineID    string    `json:"engineId"`
+	EngineName  string    `json:"engineName"`
 	EnginePath  string    `json:"enginePath"`
 	ConnectedAt time.Time `json:"connectedAt"`
 }
