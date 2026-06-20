@@ -7,14 +7,13 @@ on:
 
 jobs:
 
-  build:
+  build-server:
 
     strategy:
       fail-fast: false
       matrix:
         include:
           - os: windows-latest
-          # Uncomment to enable other platforms:
           # - os: ubuntu-latest
           # - os: macos-latest
 
@@ -53,9 +52,8 @@ jobs:
       - name: Get environment info
         shell: bash
         run: |
-          echo "GOOS=$(go env GOOS)"   >> $GITHUB_ENV
+          echo "GOOS=$(go env GOOS)"     >> $GITHUB_ENV
           echo "GOARCH=$(go env GOARCH)" >> $GITHUB_ENV
-          echo "APP_NAME=prokishi-server" >> $GITHUB_ENV
           echo "VERSION=$(cat _cmd/prokishi-server/version | xargs)" >> $GITHUB_ENV
 
       - name: Display versions
@@ -75,7 +73,7 @@ jobs:
           wails3 version
           wails3 doctor
 
-      - name: Build
+      - name: Build prokishi-server
         working-directory: ./_cmd/prokishi-server
         shell: bash
         run: |
@@ -88,7 +86,7 @@ jobs:
       - name: Archive build results
         shell: bash
         run: |
-          ZIP_NAME="${APP_NAME}-${VERSION}_${GOOS}_${GOARCH}.zip"
+          ZIP_NAME="prokishi-server-${VERSION}_${GOOS}_${GOARCH}.zip"
           mkdir -p _archive
           cp -r ./_cmd/prokishi-server/bin/* _archive/
           cd _archive
@@ -102,12 +100,73 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v6
         with:
-          name: ${{ matrix.os }}-asset
+          name: server-${{ matrix.os }}-asset
+          path: ${{ env.ZIP_PATH }}
+
+  build-client:
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            ext: .exe
+          - os: macos-latest
+            ext: ""
+          - os: ubuntu-latest
+            ext: ""
+
+    if: |
+      contains(github.ref, 'refs/tags/v') &&
+      !contains(github.ref, '-') &&
+      !contains(github.ref, '+')
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: '1.25'
+
+      - name: Get environment info
+        shell: bash
+        run: |
+          echo "GOOS=$(go env GOOS)"     >> $GITHUB_ENV
+          echo "GOARCH=$(go env GOARCH)" >> $GITHUB_ENV
+          echo "VERSION=$(cat _cmd/prokishi-server/version | xargs)" >> $GITHUB_ENV
+
+      - name: Build prokishi client
+        shell: bash
+        run: |
+          go build -ldflags "-X main.version=${VERSION}" \
+            -o "prokishi${{ matrix.ext }}" \
+            ./_cmd/prokishi/
+
+      - name: Archive build results
+        shell: bash
+        run: |
+          ZIP_NAME="prokishi-${VERSION}_${GOOS}_${GOARCH}.zip"
+          if [ "${{ runner.os }}" = "Windows" ]; then
+            7z a ${ZIP_NAME} prokishi${{ matrix.ext }}
+          else
+            zip ${ZIP_NAME} prokishi${{ matrix.ext }}
+          fi
+          echo "ZIP_PATH=${ZIP_NAME}" >> $GITHUB_ENV
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v6
+        with:
+          name: client-${{ matrix.os }}-asset
           path: ${{ env.ZIP_PATH }}
 
   release:
 
-    needs: build
+    needs: [build-server, build-client]
 
     if: |
       success() &&
