@@ -98,17 +98,12 @@ func TestInit_MigratesOldCodesSchema(t *testing.T) {
 	if lines[0] != CodesColumns {
 		t.Fatalf("header = %q, want %q", lines[0], CodesColumns)
 	}
-	// NOTE: migrateCodesColumns runs migrateCSVColumn twice in sequence
-	// (once for "disabled", once for "name"). Each call trims *any*
-	// trailing empty field before appending its own, so the second call
-	// strips the blank the first call just added instead of appending a
-	// second one. The net effect: the header gains both columns (5
-	// fields), but each data row only gains a single trailing empty field
-	// (4 fields) - the row ends up one field short of the header. This
-	// looks like an unintended quirk of the migration helper, but it is
-	// what the current code actually does, so the test pins that behavior
-	// rather than an idealized 5-field row.
-	wantRow := "OLDCODE1,2024-01-01 00:00:00,2024-01-01 00:00:00,"
+	// migrateCodesColumns runs migrateCSVColumn twice in sequence (once for
+	// "disabled", once for "name"). Each call now pads every data row out to
+	// the header's column count instead of stripping-then-appending, so a
+	// row migrated across both calls ends up with one empty field per
+	// missing column - matching the header exactly.
+	wantRow := "OLDCODE1,2024-01-01 00:00:00,2024-01-01 00:00:00,,"
 	if lines[1] != wantRow {
 		t.Fatalf("data row = %q, want %q", lines[1], wantRow)
 	}
@@ -123,24 +118,19 @@ func TestInit_MigratesOldCodesSchema(t *testing.T) {
 		t.Fatalf("second Init() changed an already-migrated file: before=%q after=%q", migrated, again)
 	}
 
-	// BUG: because of the field-count mismatch documented above, the
-	// migrated file is actually *not* readable through the normal DB API -
-	// CSVQ rejects the row outright since it has one fewer field than the
-	// header declares. This means migrating a codes.csv that predates both
-	// the "disabled" and "name" columns currently breaks every query
-	// against the codes table, not just lookups of the migrated row. This
-	// test pins that regression so it turns green (and should be updated
-	// to assert a successful SelectCode) once migrateCSVColumn is fixed to
-	// not swallow a previous call's newly-appended empty field.
+	// The migrated file must actually be readable through the normal DB
+	// API - this pins the fix for the field-count mismatch that used to
+	// make CSVQ reject every row in a codes.csv predating both the
+	// "disabled" and "name" columns.
 	if err := Open(true); err != nil {
 		t.Fatalf("Open() error: %v", err)
 	}
-	_, err := SelectCode(context.Background(), "OLDCODE1")
-	if err == nil {
-		t.Fatal("SelectCode() unexpectedly succeeded after migration - if migrateCSVColumn was fixed, update this test to assert successful data instead")
+	got, err := SelectCode(context.Background(), "OLDCODE1")
+	if err != nil {
+		t.Fatalf("SelectCode() error after migration: %v", err)
 	}
-	if !strings.Contains(err.Error(), "wrong number of fields") {
-		t.Fatalf("SelectCode() error = %v, want a CSVQ \"wrong number of fields\" parse error", err)
+	if got == nil || got.Code != "OLDCODE1" {
+		t.Fatalf("SelectCode() = %+v, want code OLDCODE1", got)
 	}
 }
 
@@ -187,5 +177,133 @@ func TestInit_MigratesOldEnginesSchema(t *testing.T) {
 	again := readFile(t, enginesPath)
 	if again != migrated {
 		t.Fatalf("second Init() changed an already-migrated file: before=%q after=%q", migrated, again)
+	}
+}
+
+func TestMigrateCSVColumn_AddsNewColumn(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "test.csv")
+	os.WriteFile(path, []byte("id,name\n1,alice\n2,bob\n"), 0644)
+
+	migrateCSVColumn(path, "age")
+
+	data, _ := os.ReadFile(path)
+	lines := strings.Split(strings.TrimSuffix(string(data), "\n"), "\n")
+
+	if lines[0] != "id,name,age" {
+		t.Errorf("header = %q, want %q", lines[0], "id,name,age")
+	}
+	if lines[1] != "1,alice," {
+		t.Errorf("row1 = %q, want %q", lines[1], "1,alice,")
+	}
+	if lines[2] != "2,bob," {
+		t.Errorf("row2 = %q, want %q", lines[2], "2,bob,")
+	}
+}
+
+func TestMigrateCSVColumn_ExistingColumnNoOp(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "test.csv")
+	original := "id,name\n1,alice\n"
+	os.WriteFile(path, []byte(original), 0644)
+
+	migrateCSVColumn(path, "name")
+
+	data, _ := os.ReadFile(path)
+	if string(data) != original {
+		t.Errorf("file changed: got %q, want %q", string(data), original)
+	}
+}
+
+func TestMigrateCSVColumn_SequentialMigrations(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "test.csv")
+	os.WriteFile(path, []byte("code,created_date\nabc,2024-01-01\n"), 0644)
+
+	migrateCSVColumn(path, "disabled")
+	migrateCSVColumn(path, "name")
+
+	data, _ := os.ReadFile(path)
+	lines := strings.Split(strings.TrimSuffix(string(data), "\n"), "\n")
+
+	if lines[0] != "code,created_date,disabled,name" {
+		t.Errorf("header = %q, want %q", lines[0], "code,created_date,disabled,name")
+	}
+	if lines[1] != "abc,2024-01-01,," {
+		t.Errorf("row = %q, want %q", lines[1], "abc,2024-01-01,,")
+	}
+}
+
+func TestMigrateCSVColumn_CRLFLineEndings(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "test.csv")
+	os.WriteFile(path, []byte("id,name\r\n1,alice\r\n"), 0644)
+
+	migrateCSVColumn(path, "age")
+
+	data, _ := os.ReadFile(path)
+	lines := strings.Split(strings.TrimSuffix(string(data), "\n"), "\n")
+
+	if lines[0] != "id,name,age" {
+		t.Errorf("header = %q, want %q", lines[0], "id,name,age")
+	}
+}
+
+func TestMigrateCSVColumn_EmptyDataRows(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "test.csv")
+	os.WriteFile(path, []byte("id,name\n"), 0644)
+
+	migrateCSVColumn(path, "age")
+
+	data, _ := os.ReadFile(path)
+	lines := strings.Split(strings.TrimSuffix(string(data), "\n"), "\n")
+
+	if lines[0] != "id,name,age" {
+		t.Errorf("header = %q, want %q", lines[0], "id,name,age")
+	}
+	if len(lines) != 1 {
+		t.Errorf("expected 1 line (header only), got %d", len(lines))
+	}
+}
+
+func TestCreateTableFile(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "engines.csv")
+
+	err := createTableFile(path, EnginesColumns)
+	if err != nil {
+		t.Fatalf("createTableFile() error: %v", err)
+	}
+
+	data, _ := os.ReadFile(path)
+	if string(data) != EnginesColumns {
+		t.Errorf("content = %q, want %q", string(data), EnginesColumns)
+	}
+}
+
+func TestInitTables(t *testing.T) {
+	dir := t.TempDir()
+	dbDir := filepath.Join(dir, "db")
+
+	err := initTables(dbDir)
+	if err != nil {
+		t.Fatalf("initTables() error: %v", err)
+	}
+
+	codesPath := filepath.Join(dbDir, "codes.csv")
+	if _, err := os.Stat(codesPath); err != nil {
+		t.Errorf("codes.csv not created: %v", err)
+	}
+
+	enginesPath := filepath.Join(dbDir, "engines.csv")
+	if _, err := os.Stat(enginesPath); err != nil {
+		t.Errorf("engines.csv not created: %v", err)
+	}
+
+	// 2回目はマイグレーションパス
+	err = initTables(dbDir)
+	if err != nil {
+		t.Fatalf("initTables() second call error: %v", err)
 	}
 }
