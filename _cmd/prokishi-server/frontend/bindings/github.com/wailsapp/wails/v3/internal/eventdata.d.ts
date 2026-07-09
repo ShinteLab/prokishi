@@ -19,7 +19,6 @@ declare module "@wailsio/runtime" {
             "conn-removed": string;
             "request-close": boolean;
             "server-state": main$0.ServerStateEvent;
-            "time": string;
             "usi-log": registry$0.USILogEvent;
         }
     }

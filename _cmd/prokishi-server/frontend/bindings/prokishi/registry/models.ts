@@ -14,6 +14,7 @@ export class Connection {
     "engineId": string;
     "engineName": string;
     "enginePath": string;
+    "pid": number;
     "connectedAt": time$0.Time;
 
     /** Creates a new Connection instance. */
@@ -29,6 +30,9 @@ export class Connection {
         }
         if (!("enginePath" in $$source)) {
             this["enginePath"] = "";
+        }
+        if (!("pid" in $$source)) {
+            this["pid"] = 0;
         }
         if (!("connectedAt" in $$source)) {
             this["connectedAt"] = null;

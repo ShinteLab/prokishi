@@ -13,7 +13,6 @@ import (
 	"prokishi/db"
 	"prokishi/registry"
 	"strings"
-	"time"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
 	"github.com/wailsapp/wails/v3/pkg/events"
@@ -35,7 +34,6 @@ var (
 )
 
 func init() {
-	application.RegisterEvent[string]("time")
 	application.RegisterEvent[bool]("request-close")
 	application.RegisterEvent[registry.Connection]("conn-added")
 	application.RegisterEvent[string]("conn-removed")
@@ -112,13 +110,14 @@ func run() error {
 func runUI(serverSvc *ServerService, reg *registry.Registry) error {
 	winSvc := &WindowService{serverService: serverSvc}
 	debugSvc := &DebugService{registry: reg}
+	systemSvc := &SystemService{registry: reg}
 
 	app := application.New(application.Options{
 		Name:        "prokishi-server",
 		Description: "Prokishi Server Admin",
 		Services: []application.Service{
-			application.NewService(&GreetService{}),
 			application.NewService(&AdminService{}),
+			application.NewService(systemSvc),
 			application.NewService(winSvc),
 			application.NewService(debugSvc),
 			application.NewService(serverSvc),
@@ -158,14 +157,6 @@ func runUI(serverSvc *ServerService, reg *registry.Registry) error {
 		event.Cancel()
 		app.Event.Emit("request-close", true)
 	})
-
-	go func() {
-		for {
-			now := time.Now().Format(time.RFC1123)
-			app.Event.Emit("time", now)
-			time.Sleep(time.Second)
-		}
-	}()
 
 	// autoStart の場合はサーバを起動
 	cfg, _ := serverSvc.GetConfig()

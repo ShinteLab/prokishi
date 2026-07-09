@@ -79,6 +79,43 @@ export class ConnectionInfo {
     }
 }
 
+export class CpuInfo {
+    "total": number;
+    "perCpu": number[];
+    "modelName": string;
+    "cores": number;
+
+    /** Creates a new CpuInfo instance. */
+    constructor($$source: Partial<CpuInfo> = {}) {
+        if (!("total" in $$source)) {
+            this["total"] = 0;
+        }
+        if (!("perCpu" in $$source)) {
+            this["perCpu"] = [];
+        }
+        if (!("modelName" in $$source)) {
+            this["modelName"] = "";
+        }
+        if (!("cores" in $$source)) {
+            this["cores"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new CpuInfo instance from a string or object.
+     */
+    static createFrom($$source: any = {}): CpuInfo {
+        const $$createField1_0 = $$createType0;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("perCpu" in $$parsedSource) {
+            $$parsedSource["perCpu"] = $$createField1_0($$parsedSource["perCpu"]);
+        }
+        return new CpuInfo($$parsedSource as Partial<CpuInfo>);
+    }
+}
+
 export class EngineItem {
     "id": string;
     "name": string;
@@ -141,10 +178,44 @@ export class LogEntryItem {
     }
 }
 
+export class ProcessCpuInfo {
+    "connId": string;
+    "engineName": string;
+    "pid": number;
+    "cpuPercent": number;
+
+    /** Creates a new ProcessCpuInfo instance. */
+    constructor($$source: Partial<ProcessCpuInfo> = {}) {
+        if (!("connId" in $$source)) {
+            this["connId"] = "";
+        }
+        if (!("engineName" in $$source)) {
+            this["engineName"] = "";
+        }
+        if (!("pid" in $$source)) {
+            this["pid"] = 0;
+        }
+        if (!("cpuPercent" in $$source)) {
+            this["cpuPercent"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ProcessCpuInfo instance from a string or object.
+     */
+    static createFrom($$source: any = {}): ProcessCpuInfo {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new ProcessCpuInfo($$parsedSource as Partial<ProcessCpuInfo>);
+    }
+}
+
 export class ServerConfig {
     "host": string;
     "port": number;
     "autoStart": boolean;
+    "useAuth": boolean;
 
     /** Creates a new ServerConfig instance. */
     constructor($$source: Partial<ServerConfig> = {}) {
@@ -156,6 +227,9 @@ export class ServerConfig {
         }
         if (!("autoStart" in $$source)) {
             this["autoStart"] = false;
+        }
+        if (!("useAuth" in $$source)) {
+            this["useAuth"] = false;
         }
 
         Object.assign(this, $$source);
@@ -194,3 +268,43 @@ export class ServerStateEvent {
         return new ServerStateEvent($$parsedSource as Partial<ServerStateEvent>);
     }
 }
+
+export class SystemInfo {
+    "cpu": CpuInfo | null;
+    "processes": ProcessCpuInfo[];
+
+    /** Creates a new SystemInfo instance. */
+    constructor($$source: Partial<SystemInfo> = {}) {
+        if (!("cpu" in $$source)) {
+            this["cpu"] = null;
+        }
+        if (!("processes" in $$source)) {
+            this["processes"] = [];
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new SystemInfo instance from a string or object.
+     */
+    static createFrom($$source: any = {}): SystemInfo {
+        const $$createField0_0 = $$createType2;
+        const $$createField1_0 = $$createType4;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("cpu" in $$parsedSource) {
+            $$parsedSource["cpu"] = $$createField0_0($$parsedSource["cpu"]);
+        }
+        if ("processes" in $$parsedSource) {
+            $$parsedSource["processes"] = $$createField1_0($$parsedSource["processes"]);
+        }
+        return new SystemInfo($$parsedSource as Partial<SystemInfo>);
+    }
+}
+
+// Private type creation functions
+const $$createType0 = $Create.Array($Create.Any);
+const $$createType1 = CpuInfo.createFrom;
+const $$createType2 = $Create.Nullable($$createType1);
+const $$createType3 = ProcessCpuInfo.createFrom;
+const $$createType4 = $Create.Array($$createType3);

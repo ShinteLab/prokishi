@@ -13,6 +13,7 @@ import (
 // 実際のエンジンにデータを渡す(Send)
 // また標準出力を監視して、チャンネルに渡す
 type Sender struct {
+	cmd        *exec.Cmd
 	out        io.ReadCloser
 	in         io.WriteCloser
 	terminated bool
@@ -39,6 +40,7 @@ func NewSender(e string) (*Sender, error) {
 	}
 
 	s.in = in
+	s.cmd = cmd
 	err = cmd.Start()
 	if err != nil {
 		return nil, xerrors.Errorf("exec.Start() error: %w", err)
@@ -77,6 +79,13 @@ func (s *Sender) monitorStdout() {
 			s.OutCh <- scanner.Text()
 		}
 	}
+}
+
+func (s *Sender) Pid() int {
+	if s.cmd != nil && s.cmd.Process != nil {
+		return s.cmd.Process.Pid
+	}
+	return 0
 }
 
 // 終了処理

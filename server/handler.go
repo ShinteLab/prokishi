@@ -27,7 +27,7 @@ func (s *Server) Connection(ctx context.Context, r *api.ConnectionRequest) (*api
 		}
 	}
 
-	connID, engineName, enginePath, err := s.startEngine(r.EngineId)
+	connID, engineName, enginePath, pid, err := s.startEngine(r.EngineId)
 	if err != nil {
 		return nil, xerrors.Errorf("startEngine() error: %w", err)
 	}
@@ -40,6 +40,7 @@ func (s *Server) Connection(ctx context.Context, r *api.ConnectionRequest) (*api
 			EngineID:    r.EngineId,
 			EngineName:  engineName,
 			EnginePath:  enginePath,
+			PID:         pid,
 			ConnectedAt: time.Now(),
 		})
 	}

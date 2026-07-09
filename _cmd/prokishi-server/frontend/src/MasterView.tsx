@@ -4,7 +4,7 @@ import {
   DialogTitle, FormControlLabel, IconButton, MenuItem,
   Paper, Snackbar, Alert, Select, Switch, Tab, Tabs, Table, TableBody,
   TableCell, TableContainer, TableHead, TableRow, TextField, Tooltip,
-  CircularProgress, Typography, InputLabel, FormControl,
+  Autocomplete, CircularProgress, Typography, InputLabel, FormControl,
 } from '@mui/material'
 import {
   Add as AddIcon,
@@ -24,7 +24,7 @@ import { AdminService, ServerService } from '../bindings/wails'
 
 type EngineItem = { id: string; name: string; path: string; created: string }
 type CodeItem = { code: string; name: string; created: string; used: string; disabled: boolean }
-type ServerConfig = { host: string; port: number; autoStart: boolean }
+type ServerConfig = { host: string; port: number; autoStart: boolean; useAuth: boolean }
 type ServerState = { running: boolean; url: string }
 type Severity = 'success' | 'error'
 
@@ -43,13 +43,13 @@ export function MasterView() {
   const [loadingCodes, setLoadingCodes] = useState(false)
   // サーバ設定
   const [serverState, setServerState] = useState<ServerState>({ running: false, url: '' })
-  const [cfg, setCfg] = useState<ServerConfig>({ host: '', port: 8080, autoStart: true })
+  const [cfg, setCfg] = useState<ServerConfig>({ host: '', port: 8080, autoStart: true, useAuth: false })
   const [cfgDirty, setCfgDirty] = useState(false)
   const [savingCfg, setSavingCfg] = useState(false)
+  const [needsRestart, setNeedsRestart] = useState(false)
   const [localIPs, setLocalIPs] = useState<string[]>([])
   // クライアント設定
   const [clientHost, setClientHost] = useState('localhost')
-  const [clientPort, setClientPort] = useState(8080)
   const [clientEngineId, setClientEngineId] = useState('')
   const [clientCode, setClientCode] = useState('')
   const [clientLogLevel, setClientLogLevel] = useState('warn')
@@ -66,7 +66,7 @@ export function MasterView() {
   useEffect(() => {
     ServerService.GetState().then((s: any) => setServerState(s)).catch(() => {})
     ServerService.GetConfig().then((c: any) => {
-      if (c) { setCfg(c); setClientPort(c.port ?? 8080) }
+      if (c) { setCfg(c) }
     }).catch(() => {})
     ServerService.GetLocalIPs().then((ips: any) => setLocalIPs(ips ?? [])).catch(() => {})
 
@@ -85,7 +85,7 @@ export function MasterView() {
   const handleSaveCfg = () => {
     setSavingCfg(true)
     ServerService.SaveConfig(cfg)
-      .then(() => { notify('設定を保存しました'); setCfgDirty(false) })
+      .then(() => { notify('設定を保存しました'); setCfgDirty(false); if (serverState.running) setNeedsRestart(true) })
       .catch((e: any) => notify(String(e), 'error'))
       .finally(() => setSavingCfg(false))
   }
@@ -93,19 +93,21 @@ export function MasterView() {
   const handleStart = () => {
     ServerService.SaveConfig(cfg)
       .then(() => ServerService.Start())
-      .then(() => { setCfgDirty(false); notify('サーバを起動しました') })
+      .then(() => { setCfgDirty(false); setNeedsRestart(false); notify('サーバを起動しました') })
       .catch((e: any) => notify(String(e), 'error'))
   }
 
   const handleStop = () => {
     ServerService.Stop()
-      .then(() => notify('サーバを停止しました'))
+      .then(() => { setNeedsRestart(false); notify('サーバを停止しました') })
       .catch((e: any) => notify(String(e), 'error'))
   }
 
   // --- クライアント設定 ---
   const handleDownloadClientConfig = () => {
-    AdminService.SaveClientConfig(clientHost, clientPort, clientCode, clientEngineId, clientLogLevel)
+    const host = cfg.host || clientHost
+    const code = cfg.useAuth ? clientCode : ''
+    AdminService.SaveClientConfig(host, cfg.port, code, clientEngineId, clientLogLevel)
       .then(() => notify('prokishi.ini を保存しました'))
       .catch((e: any) => notify(String(e), 'error'))
   }
@@ -204,11 +206,20 @@ export function MasterView() {
     <>
       <Box sx={{ flex: 1, overflow: 'auto' }}>
         <Container maxWidth="md" sx={{ py: 3 }}>
-          <Tabs value={tab} onChange={(_, v) => setTab(v)} sx={{ mb: 2 }}>
+          <Tabs
+            value={tab}
+            onChange={(_, v) => setTab(v)}
+            variant="scrollable"
+            scrollButtons="auto"
+            sx={{
+              mb: 2,
+              '& .MuiTabs-flexContainer': { gap: 1 },
+              '& .MuiTab-root': { minWidth: 130, px: '24px !important' },
+            }}
+          >
             <Tab label="サーバ設定" />
             <Tab label="エンジン管理" />
             <Tab label="認証コード管理" />
-            <Tab label="クライアント設定" />
           </Tabs>
 
           {/* サーバ設定タブ */}
@@ -235,31 +246,23 @@ export function MasterView() {
                     )}
                   </Box>
                 </Box>
-                {serverState.running && (() => {
-                  // host が空 = 0.0.0.0（全IF）→ ローカルIP一覧を表示
-                  // host が設定済み → その値だけを表示（localhostならlocalhostのまま）
-                  const hosts = cfg.host ? [cfg.host] : localIPs
-                  if (hosts.length === 0) return null
-                  return (
-                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                {serverState.running && serverState.url && (
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                       <Typography variant="caption" sx={{ color: 'text.disabled' }}>
-                        クライアントの接続先 (prokishi.ini の host に設定)
+                        リッスン中:
                       </Typography>
-                      {hosts.map(h => (
-                        <Box key={h} sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                          <Typography sx={{ fontFamily: 'monospace', fontSize: '0.85rem', color: 'success.light' }}>
-                            {h}:{cfg.port}
-                          </Typography>
-                          <Tooltip title="host をコピー">
-                            <IconButton size="small" onClick={() => copy(h)} sx={{ opacity: 0.5, '&:hover': { opacity: 1 } }}>
-                              <CopyIcon sx={{ fontSize: 13 }} />
-                            </IconButton>
-                          </Tooltip>
-                        </Box>
-                      ))}
+                      <Typography sx={{ fontFamily: 'monospace', fontSize: '0.85rem', color: 'success.light' }}>
+                        {serverState.url}
+                      </Typography>
                     </Box>
-                  )
-                })()}
+                    {needsRestart && (
+                      <Typography variant="caption" sx={{ color: 'warning.main' }}>
+                        設定が変更されています。反映するにはサーバを再起動してください。
+                      </Typography>
+                    )}
+                  </Box>
+                )}
               </Paper>
 
               {/* 設定フォーム */}
@@ -270,8 +273,8 @@ export function MasterView() {
                   fullWidth
                   value={cfg.host}
                   onChange={e => handleCfgChange('host', e.target.value)}
-                  placeholder="空欄 = すべてのインターフェース (0.0.0.0)"
-                  helperText="特定のIPアドレスにバインドする場合に入力"
+                  placeholder="空欄 = すべての接続を受け入れ"
+                  helperText="localhost や 127.0.0.1 を指定すると同じ端末からのみ接続可能です"
                 />
                 <TextField
                   label="ポート"
@@ -292,6 +295,16 @@ export function MasterView() {
                   }
                   label="起動時にサーバを自動起動"
                 />
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={cfg.useAuth}
+                      onChange={e => handleCfgChange('useAuth', e.target.checked)}
+                      color="primary"
+                    />
+                  }
+                  label="認証コードによる接続認証を使用"
+                />
                 <Box>
                   <Button
                     variant="contained"
@@ -304,6 +317,115 @@ export function MasterView() {
                   {cfgDirty && (
                     <Typography variant="caption" sx={{ ml: 1.5, color: 'warning.main' }}>
                       未保存の変更があります
+                    </Typography>
+                  )}
+                </Box>
+              </Paper>
+
+              {/* 設定ファイル生成 */}
+              <Paper variant="outlined" sx={{ p: 2, display: 'flex', flexDirection: 'column', gap: 2 }}>
+                <Typography variant="subtitle2" sx={{ color: 'text.secondary' }}>
+                  設定ファイル生成
+                </Typography>
+                <Typography variant="body2" sx={{ color: 'text.disabled', mt: -1 }}>
+                  クライアント (prokishi) の接続設定ファイルを生成します。
+                </Typography>
+
+                {cfg.host ? (
+                  <TextField
+                    label="接続先ホスト"
+                    size="small"
+                    fullWidth
+                    value={cfg.host}
+                    disabled
+                    helperText="サーバのホストが指定されているため固定です"
+                  />
+                ) : (
+                  <Autocomplete
+                    freeSolo
+                    options={localIPs}
+                    value={clientHost}
+                    onInputChange={(_, v) => setClientHost(v)}
+                    renderInput={(params) => (
+                      <TextField
+                        {...params}
+                        label="接続先ホスト"
+                        size="small"
+                        placeholder="IP を選択またはドメインを入力"
+                      />
+                    )}
+                  />
+                )}
+
+                <FormControl size="small" fullWidth>
+                  <InputLabel>エンジン ID</InputLabel>
+                  <Select
+                    value={clientEngineId}
+                    label="エンジン ID"
+                    onChange={e => setClientEngineId(e.target.value)}
+                  >
+                    <MenuItem value="">— 未選択 —</MenuItem>
+                    {engines.map(e => (
+                      <MenuItem key={e.id} value={e.id}>
+                        <Box sx={{ display: 'flex', flexDirection: 'column' }}>
+                          <Typography sx={{ fontSize: '0.85rem', fontWeight: e.name ? 500 : 'normal' }}>
+                            {e.name || e.path.split('\\').pop()}
+                          </Typography>
+                          <Typography sx={{ fontFamily: 'monospace', fontSize: '0.7rem', color: 'text.secondary' }}>{e.id}</Typography>
+                        </Box>
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+
+                {cfg.useAuth && (
+                  <FormControl size="small" fullWidth>
+                    <InputLabel>認証コード</InputLabel>
+                    <Select
+                      value={clientCode}
+                      label="認証コード"
+                      onChange={e => setClientCode(e.target.value)}
+                    >
+                      <MenuItem value="">— 未選択 —</MenuItem>
+                      {codes.map(c => (
+                        <MenuItem key={c.code} value={c.code}>
+                          <Typography sx={{ fontFamily: 'monospace', fontSize: '0.75rem' }}>{c.code}</Typography>
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                )}
+
+                <FormControl size="small" sx={{ width: 160 }}>
+                  <InputLabel>ログレベル</InputLabel>
+                  <Select value={clientLogLevel} label="ログレベル" onChange={e => setClientLogLevel(e.target.value)}>
+                    <MenuItem value="debug">debug</MenuItem>
+                    <MenuItem value="info">info</MenuItem>
+                    <MenuItem value="warn">warn</MenuItem>
+                    <MenuItem value="error">error</MenuItem>
+                  </Select>
+                </FormControl>
+
+                {/* プレビュー */}
+                <Box sx={{ bgcolor: 'background.default', borderRadius: 1, p: 1.5, border: '1px solid', borderColor: 'divider' }}>
+                  <Typography variant="caption" sx={{ color: 'text.disabled', display: 'block', mb: 0.5 }}>prokishi.ini プレビュー</Typography>
+                  <Box component="pre" sx={{ fontFamily: 'monospace', fontSize: '0.78rem', color: 'text.primary', m: 0 }}>
+                    {`host = "${cfg.host || clientHost}"\nport = ${cfg.port}\ncode = "${cfg.useAuth ? clientCode : ''}"\nengineId = "${clientEngineId}"\nlogLevel = "${clientLogLevel}"`}
+                  </Box>
+                </Box>
+
+                <Box>
+                  <Button
+                    variant="contained"
+                    startIcon={<DownloadIcon />}
+                    onClick={handleDownloadClientConfig}
+                    disabled={!clientEngineId}
+                  >
+                    prokishi.ini を保存
+                  </Button>
+                  {!clientEngineId && (
+                    <Typography variant="caption" sx={{ ml: 1.5, color: 'warning.main' }}>
+                      エンジン ID を選択してください
                     </Typography>
                   )}
                 </Box>
@@ -333,7 +455,7 @@ export function MasterView() {
                   placeholder="例: Apery WCSC"
                 />
                 <Button variant="contained" startIcon={<AddIcon />} onClick={handleRegisterEngine}
-                  disabled={!enginePath.trim()} sx={{ whiteSpace: 'nowrap' }}>登録</Button>
+                  disabled={!enginePath.trim()}>登録</Button>
                 <Tooltip title="更新">
                   <IconButton onClick={loadEngines}><RefreshIcon /></IconButton>
                 </Tooltip>
@@ -427,9 +549,8 @@ export function MasterView() {
                   placeholder="例: 山田太郎"
                 />
                 <Button variant="contained" startIcon={<AddIcon />} onClick={handleRegisterCode}
-                  disabled={!codeInput.trim()} sx={{ whiteSpace: 'nowrap' }}>登録</Button>
-                <Button variant="outlined" startIcon={<GenerateIcon />} onClick={handleGenerateCode}
-                  sx={{ whiteSpace: 'nowrap' }}>自動生成</Button>
+                  disabled={!codeInput.trim()}>登録</Button>
+                <Button variant="outlined" startIcon={<GenerateIcon />} onClick={handleGenerateCode}>自動生成</Button>
                 <Tooltip title="更新">
                   <IconButton onClick={loadCodes}><RefreshIcon /></IconButton>
                 </Tooltip>
@@ -513,107 +634,6 @@ export function MasterView() {
                   </TableBody>
                 </Table>
               </TableContainer>
-            </Box>
-          )}
-          {/* クライアント設定タブ */}
-          {tab === 3 && (
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-              <Paper variant="outlined" sx={{ p: 2, display: 'flex', flexDirection: 'column', gap: 2 }}>
-                <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-                  クライアント (prokishi) の接続設定ファイルを生成します。
-                </Typography>
-
-                <TextField
-                  label="サーバホスト"
-                  size="small"
-                  value={clientHost}
-                  onChange={e => setClientHost(e.target.value)}
-                  placeholder="localhost"
-                  helperText="クライアントがサーバに接続するホスト名または IP アドレス"
-                />
-
-                <TextField
-                  label="ポート"
-                  size="small"
-                  type="number"
-                  value={clientPort}
-                  onChange={e => setClientPort(parseInt(e.target.value) || 8080)}
-                  slotProps={{ htmlInput: { min: 1, max: 65535 } }}
-                  sx={{ width: 160 }}
-                />
-
-                <FormControl size="small" fullWidth>
-                  <InputLabel>エンジン ID</InputLabel>
-                  <Select
-                    value={clientEngineId}
-                    label="エンジン ID"
-                    onChange={e => setClientEngineId(e.target.value)}
-                    displayEmpty
-                  >
-                    <MenuItem value=""><em>— 選択してください —</em></MenuItem>
-                    {engines.map(e => (
-                      <MenuItem key={e.id} value={e.id}>
-                        <Box sx={{ display: 'flex', flexDirection: 'column' }}>
-                          <Typography sx={{ fontSize: '0.85rem', fontWeight: e.name ? 500 : 'normal' }}>
-                            {e.name || e.path.split('\\').pop()}
-                          </Typography>
-                          <Typography sx={{ fontFamily: 'monospace', fontSize: '0.7rem', color: 'text.secondary' }}>{e.id}</Typography>
-                        </Box>
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-
-                <FormControl size="small" fullWidth>
-                  <InputLabel>認証コード (任意)</InputLabel>
-                  <Select
-                    value={clientCode}
-                    label="認証コード (任意)"
-                    onChange={e => setClientCode(e.target.value)}
-                  >
-                    <MenuItem value="">— なし —</MenuItem>
-                    {codes.map(c => (
-                      <MenuItem key={c.code} value={c.code}>
-                        <Typography sx={{ fontFamily: 'monospace', fontSize: '0.75rem' }}>{c.code}</Typography>
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-
-                <FormControl size="small" sx={{ width: 160 }}>
-                  <InputLabel>ログレベル</InputLabel>
-                  <Select value={clientLogLevel} label="ログレベル" onChange={e => setClientLogLevel(e.target.value)}>
-                    <MenuItem value="debug">debug</MenuItem>
-                    <MenuItem value="info">info</MenuItem>
-                    <MenuItem value="warn">warn</MenuItem>
-                    <MenuItem value="error">error</MenuItem>
-                  </Select>
-                </FormControl>
-
-                {/* プレビュー */}
-                <Box sx={{ bgcolor: 'background.default', borderRadius: 1, p: 1.5, border: '1px solid', borderColor: 'divider' }}>
-                  <Typography variant="caption" sx={{ color: 'text.disabled', display: 'block', mb: 0.5 }}>prokishi.ini プレビュー</Typography>
-                  <Box component="pre" sx={{ fontFamily: 'monospace', fontSize: '0.78rem', color: 'text.primary', m: 0 }}>
-                    {`host = "${clientHost}"\nport = ${clientPort}\ncode = "${clientCode}"\nengineId = "${clientEngineId}"\nlogLevel = "${clientLogLevel}"`}
-                  </Box>
-                </Box>
-
-                <Box>
-                  <Button
-                    variant="contained"
-                    startIcon={<DownloadIcon />}
-                    onClick={handleDownloadClientConfig}
-                    disabled={!clientEngineId}
-                  >
-                    prokishi.ini を保存
-                  </Button>
-                  {!clientEngineId && (
-                    <Typography variant="caption" sx={{ ml: 1.5, color: 'warning.main' }}>
-                      エンジン ID を選択してください
-                    </Typography>
-                  )}
-                </Box>
-              </Paper>
             </Box>
           )}
         </Container>

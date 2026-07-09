@@ -5,6 +5,7 @@ import "prokishi/registry"
 type Config struct {
 	Version  string
 	Registry *registry.Registry
+	UseAuth  bool
 }
 
 const (
@@ -34,6 +35,13 @@ func Version(v string) Option {
 func WithRegistry(r *registry.Registry) Option {
 	return func(c *Config) error {
 		c.Registry = r
+		return nil
+	}
+}
+
+func WithAuth(useAuth bool) Option {
+	return func(c *Config) error {
+		c.UseAuth = useAuth
 		return nil
 	}
 }

@@ -21,6 +21,7 @@ type ServerConfig struct {
 	Host      string `json:"host"`
 	Port      int    `json:"port"`
 	AutoStart bool   `json:"autoStart"`
+	UseAuth   bool   `json:"useAuth"`
 }
 
 type ServerStateEvent struct {
@@ -131,7 +132,7 @@ func (s *ServerService) Start() error {
 	s.emit(true, url)
 
 	go func() {
-		if err := server.Run(ctx, cfg.Host, cfg.Port, server.WithRegistry(s.registry)); err != nil {
+		if err := server.Run(ctx, cfg.Host, cfg.Port, server.WithRegistry(s.registry), server.WithAuth(cfg.UseAuth)); err != nil {
 			slog.Error("server.Run error", "err", err)
 		}
 		s.mu.Lock()

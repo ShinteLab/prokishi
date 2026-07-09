@@ -10,8 +10,12 @@ import { WindowService } from '../bindings/wails'
 import { TitleBar, View } from './TitleBar'
 import { MonitorView } from './MonitorView'
 import { MasterView } from './MasterView'
+import { SystemView } from './SystemView'
 
-const darkTheme = createTheme({ palette: { mode: 'dark' } })
+const darkTheme = createTheme({
+  palette: { mode: 'dark' },
+})
+
 
 export default function App() {
   const [view, setView] = useState<View>('monitor')
@@ -50,6 +54,7 @@ export default function App() {
 
         {view === 'monitor' && <MonitorView />}
         {view === 'master' && <MasterView />}
+        {view === 'system' && <SystemView />}
       </Box>
 
       {/* 終了確認ダイアログ */}

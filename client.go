@@ -177,6 +177,7 @@ func (cli *Client) receiveServer(stream api.USIReceiveService_ReceiveClient, v s
 
 		res, err := stream.Recv()
 		if err != nil {
+			slog.Info("server connection closed", "err", err)
 			break
 		}
 
@@ -192,4 +193,6 @@ func (cli *Client) receiveServer(stream api.USIReceiveService_ReceiveClient, v s
 		//UIエンジンに送信
 		cli.recvUSI.Send(cmd)
 	}
+
+	cli.quit <- os.Interrupt
 }
