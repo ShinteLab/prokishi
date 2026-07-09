@@ -5,6 +5,7 @@ import (
 	"io"
 	"log"
 	"os/exec"
+	"sync"
 
 	"golang.org/x/xerrors"
 )
@@ -13,11 +14,12 @@ import (
 // 実際のエンジンにデータを渡す(Send)
 // また標準出力を監視して、チャンネルに渡す
 type Sender struct {
-	cmd        *exec.Cmd
-	out        io.ReadCloser
-	in         io.WriteCloser
-	terminated bool
-	OutCh      chan string
+	cmd          *exec.Cmd
+	out          io.ReadCloser
+	in           io.WriteCloser
+	terminated   bool
+	terminateMtx sync.Mutex
+	OutCh        chan string
 }
 
 // エンジンを起動し、監視を開始
@@ -90,6 +92,14 @@ func (s *Sender) Pid() int {
 
 // 終了処理
 func (s *Sender) Terminate() error {
+
+	s.terminateMtx.Lock()
+	defer s.terminateMtx.Unlock()
+
+	if s.terminated {
+		return nil
+	}
+	s.terminated = true
 
 	//基本的に閉じててエラーが出るがとりあえず
 	s.out.Close()

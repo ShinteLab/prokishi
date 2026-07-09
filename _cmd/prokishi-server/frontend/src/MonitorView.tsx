@@ -9,33 +9,47 @@ import { DebugService, ServerService } from '../bindings/wails'
 
 type ConnectionInfo = { id: string; engineId: string; engineName: string; enginePath: string; connectedAt: any; active?: boolean }
 type LogEntryItem  = { timestamp: any; dir: number; message: string }
-type SendRange     = { from: number; to: number } | null
-type HighlightWin  = { from: number; to: number } | null
+export type SendRange     = { from: number; to: number } | null
+export type HighlightWin  = { from: number; to: number } | null
 
 const SEND_COLOR = 'success.main'
 const RECV_COLOR = 'info.main'
 const SEND_LIGHT = 'success.light'
 const RECV_LIGHT = 'info.light'
 
-const toMs = (ts: any): number => {
+export const toMs = (ts: any): number => {
   if (!ts) return 0
   try { return new Date(ts).getTime() } catch { return 0 }
 }
-const fmt = (ts: any) => {
+export const fmt = (ts: any) => {
   if (!ts) return ''
   try { return new Date(ts).toLocaleTimeString('ja-JP', { hour12: false }) } catch { return String(ts) }
 }
 
-type HL = 'normal' | 'hi' | 'dim'
+export type HL = 'normal' | 'hi' | 'dim'
 
-function sendHL(sendRange: SendRange, i: number): HL {
+export function sendHL(sendRange: SendRange, i: number): HL {
   if (!sendRange) return 'normal'
   return i >= sendRange.from && i <= sendRange.to ? 'hi' : 'dim'
 }
-function recvHL(win: HighlightWin, ts: any): HL {
+export function recvHL(win: HighlightWin, ts: any): HL {
   if (!win) return 'normal'
   const ms = toMs(ts)
   return ms >= win.from && ms < win.to ? 'hi' : 'dim'
+}
+
+// 送信範囲選択ロジック（handleSendClick から抽出した純粋関数）
+export function computeSendRange(
+  prevRange: SendRange, prevAnchor: number | null, i: number, shift: boolean
+): { range: SendRange; anchor: number | null } {
+  if (shift && prevAnchor !== null) {
+    // Shift: アンカー〜クリック位置の範囲
+    return { range: { from: Math.min(prevAnchor, i), to: Math.max(prevAnchor, i) }, anchor: prevAnchor }
+  }
+  // 通常: 同一行クリックで解除、それ以外は単一選択しアンカー更新
+  const range: SendRange = (prevRange?.from === i && prevRange?.to === i) ? null : { from: i, to: i }
+  const anchor = (prevAnchor === i && prevRange?.from === i && prevRange?.to === i) ? null : i
+  return { range, anchor }
 }
 
 // 時系列1行
@@ -202,14 +216,9 @@ export function MonitorView() {
 
   // 送信クリックハンドラ（時系列・分割共通）
   const handleSendClick = useCallback((i: number, shift: boolean) => {
-    if (shift && anchorIdx !== null) {
-      // Shift: アンカー〜クリック位置の範囲
-      setSendRange({ from: Math.min(anchorIdx, i), to: Math.max(anchorIdx, i) })
-    } else {
-      // 通常: 同一行クリックで解除、それ以外は単一選択しアンカー更新
-      setSendRange(prev => (prev?.from === i && prev?.to === i) ? null : { from: i, to: i })
-      setAnchorIdx(prev => (prev === i && sendRange?.from === i && sendRange?.to === i) ? null : i)
-    }
+    const { range, anchor } = computeSendRange(sendRange, anchorIdx, i, shift)
+    setSendRange(range)
+    setAnchorIdx(anchor)
   }, [anchorIdx, sendRange])
 
   // 受信ハイライト窓

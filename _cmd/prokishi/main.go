@@ -38,7 +38,7 @@ func main() {
 	if err != nil {
 		msg := fmt.Sprintf("%+v", err)
 		slog.Error(msg)
-		fmt.Fprintf(os.Stderr, msg+"\n")
+		fmt.Fprintln(os.Stderr, msg)
 		os.Exit(1)
 	}
 }

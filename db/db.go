@@ -149,7 +149,7 @@ func migrateCSVColumn(path, column string) {
 		lines[0] = strings.Join(headerCols, ",")
 	}
 
-	// データ行の列数をヘッダーに合わせる
+	// 各データ行の列数をヘッダーに合わせる（既存フィールドは除去せず不足分のみ追加）
 	numCols := len(headerCols)
 	for i := 1; i < len(lines); i++ {
 		parts := strings.Split(lines[i], ",")

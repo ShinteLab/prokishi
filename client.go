@@ -181,13 +181,7 @@ func (cli *Client) receiveServer(stream api.USIReceiveService_ReceiveClient, v s
 			break
 		}
 
-		cmd := res.Cmd
-		//以下を編集
-		if strings.Index(cmd, "id name") == 0 {
-			cmd = fmt.Sprintf(cmd+"(%s)", "prokishi "+v)
-		} else if strings.Index(cmd, "id author") == 0 {
-			cmd = fmt.Sprintf(cmd+"(%s)", "secondarykey")
-		}
+		cmd := formatEngineLine(res.Cmd, v)
 
 		slog.Debug(fmt.Sprintf("USI(O): %s\n", cmd))
 		//UIエンジンに送信
@@ -195,4 +189,15 @@ func (cli *Client) receiveServer(stream api.USIReceiveService_ReceiveClient, v s
 	}
 
 	cli.quit <- os.Interrupt
+}
+
+// id name,id authorの行にprokishiのバージョン/作者情報を付与する
+// それ以外の行はそのまま返す
+func formatEngineLine(cmd, v string) string {
+	if strings.Index(cmd, "id name") == 0 {
+		cmd = fmt.Sprintf(cmd+"(%s)", "prokishi "+v)
+	} else if strings.Index(cmd, "id author") == 0 {
+		cmd = fmt.Sprintf(cmd+"(%s)", "secondarykey")
+	}
+	return cmd
 }
