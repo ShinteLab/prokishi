@@ -3,22 +3,25 @@
 
 import * as AdminService from "./adminservice.js";
 import * as DebugService from "./debugservice.js";
-import * as GreetService from "./greetservice.js";
 import * as ServerService from "./serverservice.js";
+import * as SystemService from "./systemservice.js";
 import * as WindowService from "./windowservice.js";
 export {
     AdminService,
     DebugService,
-    GreetService,
     ServerService,
+    SystemService,
     WindowService
 };
 
 export {
     CodeItem,
     ConnectionInfo,
+    CpuInfo,
     EngineItem,
     LogEntryItem,
+    ProcessCpuInfo,
     ServerConfig,
-    ServerStateEvent
+    ServerStateEvent,
+    SystemInfo
 } from "./models.js";

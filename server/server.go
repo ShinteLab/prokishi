@@ -32,15 +32,11 @@ func Run(ctx context.Context, host string, port int, opts ...Option) error {
 
 	s := grpc.NewServer()
 
-	var reg *registry.Registry
+	merged := &Config{}
 	for _, opt := range opts {
-		cfg := &Config{}
-		opt(cfg)
-		if cfg.Registry != nil {
-			reg = cfg.Registry
-		}
+		opt(merged)
 	}
-	RegisterServiceServer(s, reg)
+	RegisterServiceServer(s, merged.Registry, merged.UseAuth)
 
 	go func() {
 		err := s.Serve(listener)
@@ -68,14 +64,16 @@ type Server struct {
 
 	engines  *sync.Map
 	registry *registry.Registry
+	useAuth  bool
 }
 
 // GRPCサービスを登録
-func RegisterServiceServer(r grpc.ServiceRegistrar, reg *registry.Registry) *Server {
+func RegisterServiceServer(r grpc.ServiceRegistrar, reg *registry.Registry, useAuth bool) *Server {
 
 	serv := &Server{
 		engines:  &sync.Map{},
 		registry: reg,
+		useAuth:  useAuth,
 	}
 
 	api.RegisterConnectionServiceServer(r, serv)
@@ -88,17 +86,11 @@ func RegisterServiceServer(r grpc.ServiceRegistrar, reg *registry.Registry) *Ser
 // 認証
 func (s *Server) verifyAuthentication(code string) bool {
 
-	ctx := context.Background()
-	cnt, err := db.CountCodes(ctx)
-	if err != nil {
-		slog.Error(err.Error())
-		return false
-	}
-
-	if cnt == 0 {
+	if !s.useAuth {
 		return true
 	}
 
+	ctx := context.Background()
 	c, err := db.SelectCode(ctx, code)
 	if err != nil {
 		slog.Error(err.Error())
@@ -112,29 +104,29 @@ func (s *Server) verifyAuthentication(code string) bool {
 	return true
 }
 
-// コネクションIDでエンジンを実行し登録する。connID, engineName, enginePath を返す。
-func (s *Server) startEngine(engineID string) (connID string, engineName string, enginePath string, err error) {
+// コネクションIDでエンジンを実行し登録する。
+func (s *Server) startEngine(engineID string) (connID string, engineName string, enginePath string, pid int, err error) {
 
 	if engineID == "" {
-		return "", "", "", fmt.Errorf("EngineId required.")
+		return "", "", "", 0, fmt.Errorf("EngineId required.")
 	}
 
 	e, dbErr := db.SelectEngine(context.Background(), engineID)
 	if dbErr != nil {
-		return "", "", "", xerrors.Errorf("db.SelectEngine() error: %w", dbErr)
+		return "", "", "", 0, xerrors.Errorf("db.SelectEngine() error: %w", dbErr)
 	}
 	if e == nil {
-		return "", "", "", xerrors.Errorf("Engine is Not Found:[%s]", engineID)
+		return "", "", "", 0, xerrors.Errorf("Engine is Not Found:[%s]", engineID)
 	}
 
 	engine, newErr := usi.NewSender(e.Path)
 	if newErr != nil {
-		return "", "", "", xerrors.Errorf("usi.NewSender() error: %w", newErr)
+		return "", "", "", 0, xerrors.Errorf("usi.NewSender() error: %w", newErr)
 	}
 
 	uid := uuid.New()
 	connID = uid.String()
 	s.engines.Store(connID, engine)
-	return connID, e.Name, e.Path, nil
+	return connID, e.Name, e.Path, engine.Pid(), nil
 }
 

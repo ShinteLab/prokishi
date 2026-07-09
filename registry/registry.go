@@ -23,6 +23,7 @@ type Connection struct {
 	EngineID    string    `json:"engineId"`
 	EngineName  string    `json:"engineName"`
 	EnginePath  string    `json:"enginePath"`
+	PID         int       `json:"pid"`
 	ConnectedAt time.Time `json:"connectedAt"`
 }
 
