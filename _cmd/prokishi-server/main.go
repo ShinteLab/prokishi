@@ -57,7 +57,7 @@ func main() {
 		if !consoleLog {
 			slog.Error(msg)
 		}
-		fmt.Fprintf(os.Stderr, msg+"\n")
+		fmt.Fprintln(os.Stderr, msg)
 	}
 }
 
