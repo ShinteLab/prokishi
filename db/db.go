@@ -143,16 +143,14 @@ func migrateCSVColumn(path, column string) {
 		}
 	}
 
-	// 各行の末尾の空フィールドを除去してから新列を追加
-	for i, line := range lines {
-		parts := strings.Split(line, ",")
-		for len(parts) > 1 && parts[len(parts)-1] == "" {
-			parts = parts[:len(parts)-1]
-		}
-		if i == 0 {
-			parts = append(parts, column) // ヘッダーは列名を追加
-		} else {
-			parts = append(parts, "") // データ行は空値を追加
+	lines[0] += "," + column
+	numCols := len(strings.Split(lines[0], ","))
+
+	// 各データ行の列数をヘッダーに合わせる（既存フィールドは除去せず不足分のみ追加）
+	for i := 1; i < len(lines); i++ {
+		parts := strings.Split(lines[i], ",")
+		for len(parts) < numCols {
+			parts = append(parts, "")
 		}
 		lines[i] = strings.Join(parts, ",")
 	}
