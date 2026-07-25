@@ -4,7 +4,7 @@ import (
 	"os"
 	"testing"
 
-	"shinte/prokishi/db"
+	"github.com/ShinteLab/prokishi/db"
 )
 
 // chdirTemp creates a fresh temporary directory, changes the process's

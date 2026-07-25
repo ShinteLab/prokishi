@@ -1,6 +1,6 @@
 package server
 
-import "shinte/prokishi/registry"
+import "github.com/ShinteLab/prokishi/registry"
 
 type Config struct {
 	Version  string

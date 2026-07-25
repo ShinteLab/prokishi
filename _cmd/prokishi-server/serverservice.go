@@ -8,9 +8,9 @@ import (
 	"net"
 	"os"
 	"path/filepath"
-	"shinte/prokishi"
-	"shinte/prokishi/registry"
-	"shinte/prokishi/server"
+	"github.com/ShinteLab/prokishi"
+	"github.com/ShinteLab/prokishi/registry"
+	"github.com/ShinteLab/prokishi/server"
 	"strconv"
 	"sync"
 

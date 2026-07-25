@@ -6,10 +6,10 @@ import (
 	"log/slog"
 	"time"
 
-	"shinte/prokishi/api"
-	"shinte/prokishi/db"
-	"shinte/prokishi/registry"
-	"shinte/prokishi/usi"
+	"github.com/ShinteLab/prokishi/api"
+	"github.com/ShinteLab/prokishi/db"
+	"github.com/ShinteLab/prokishi/registry"
+	"github.com/ShinteLab/prokishi/usi"
 
 	"golang.org/x/xerrors"
 )

@@ -8,6 +8,10 @@ Prokishi is a USI (Universal Shogi Interface) protocol proxy written in Go. It s
 
 Typical deployment: the server runs on a Windows machine with engine binaries (e.g. Apery, YaneuraOu), and the client runs on macOS with ShogiHome (Electron-based cross-platform GUI). Manual testing is also done with ShogiGUI on Windows.
 
+## Module layout
+
+This directory is its own Go module, `github.com/ShinteLab/prokishi`. It has no Go dependency on `core` (only the frontend uses `@shinte/web`, resolved by relative path). The Wails3 app under `_cmd/prokishi-server/` is a separate nested module (`prokishi-server`) that pulls this one in via `replace github.com/ShinteLab/prokishi => ../../` — no tags are published yet, so keep that directive. Run all `go` commands from this directory. See the parent directory's `CLAUDE.md` for cross-project rules.
+
 ## Build Commands
 
 ### prokishi client (plain Go CLI)

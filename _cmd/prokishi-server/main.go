@@ -9,9 +9,9 @@ import (
 	"log/slog"
 	"os"
 	"os/signal"
-	"shinte/prokishi"
-	"shinte/prokishi/db"
-	"shinte/prokishi/registry"
+	"github.com/ShinteLab/prokishi"
+	"github.com/ShinteLab/prokishi/db"
+	"github.com/ShinteLab/prokishi/registry"
 	"strings"
 
 	"github.com/wailsapp/wails/v3/pkg/application"

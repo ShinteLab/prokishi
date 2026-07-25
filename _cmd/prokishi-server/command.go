@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"shinte/prokishi/server"
+	"github.com/ShinteLab/prokishi/server"
 
 	"golang.org/x/xerrors"
 )

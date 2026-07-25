@@ -1,7 +1,7 @@
 package main
 
 import (
-	"shinte/prokishi/registry"
+	"github.com/ShinteLab/prokishi/registry"
 	"time"
 )
 

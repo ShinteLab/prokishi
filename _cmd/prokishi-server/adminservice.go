@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"shinte/prokishi/db"
+	"github.com/ShinteLab/prokishi/db"
 
 	"github.com/google/uuid"
 	"github.com/wailsapp/wails/v3/pkg/application"

@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"shinte/prokishi/registry"
+	"github.com/ShinteLab/prokishi/registry"
 )
 
 func TestServerService_GetConfig_MissingFileReturnsDefault(t *testing.T) {

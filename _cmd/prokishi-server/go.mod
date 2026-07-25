@@ -3,11 +3,11 @@ module prokishi-server
 go 1.26.1
 
 require (
+	github.com/ShinteLab/prokishi v0.0.0-00010101000000-000000000000
 	github.com/google/uuid v1.6.0
 	github.com/shirou/gopsutil/v4 v4.26.5
 	github.com/wailsapp/wails/v3 v3.0.0-alpha.98
 	golang.org/x/xerrors v0.0.0-20240903120638-7835f813f4da
-	shinte v0.0.0-00010101000000-000000000000
 )
 
 require (
@@ -60,4 +60,4 @@ require (
 	gopkg.in/warnings.v0 v0.1.2 // indirect
 )
 
-replace shinte => ../../../
+replace github.com/ShinteLab/prokishi => ../../

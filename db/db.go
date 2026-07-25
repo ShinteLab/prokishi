@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"shinte/prokishi"
+	"github.com/ShinteLab/prokishi"
 
 	_ "github.com/mithrandie/csvq-driver"
 	"golang.org/x/xerrors"

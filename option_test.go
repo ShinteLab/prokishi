@@ -1,7 +1,7 @@
 package prokishi_test
 
 import (
-	"shinte/prokishi"
+	"github.com/ShinteLab/prokishi"
 	"testing"
 )
 
