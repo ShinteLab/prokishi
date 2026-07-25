@@ -3,7 +3,7 @@ import { act, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import App from './App'
 import { Events } from '@wailsio/runtime'
-import { WindowService } from '../bindings/wails'
+import { WindowService } from '../bindings/prokishi-server'
 
 // App.tsx subscribes to the 'request-close' Wails event (emitted by the Go
 // side in response to WindowClosing) and shows a confirmation dialog.

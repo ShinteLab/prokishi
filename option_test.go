@@ -1,7 +1,7 @@
 package prokishi_test
 
 import (
-	"prokishi"
+	"shinte/prokishi"
 	"testing"
 )
 

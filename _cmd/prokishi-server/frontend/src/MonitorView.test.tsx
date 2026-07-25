@@ -3,7 +3,7 @@ import { act, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MonitorView } from './MonitorView'
 import { Events } from '@wailsio/runtime'
-import { DebugService, ServerService } from '../bindings/wails'
+import { DebugService, ServerService } from '../bindings/prokishi-server'
 
 vi.mock('@wailsio/runtime', () => ({
   Events: { On: vi.fn(() => () => {}) },

@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"prokishi/registry"
+	"shinte/prokishi/registry"
 )
 
 func TestDebugService_ListConnections(t *testing.T) {

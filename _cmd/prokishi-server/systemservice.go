@@ -2,7 +2,7 @@ package main
 
 import (
 	"context"
-	"prokishi/registry"
+	"shinte/prokishi/registry"
 	"runtime"
 	"time"
 

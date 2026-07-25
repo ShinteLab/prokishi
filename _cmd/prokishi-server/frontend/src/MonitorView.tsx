@@ -5,7 +5,7 @@ import ViewColumnIcon from '@mui/icons-material/ViewColumn'
 import ViewStreamIcon from '@mui/icons-material/ViewStream'
 import WrapTextIcon from '@mui/icons-material/WrapText'
 import { Events } from '@wailsio/runtime'
-import { DebugService, ServerService } from '../bindings/wails'
+import { DebugService, ServerService } from '../bindings/prokishi-server'
 
 type ConnectionInfo = { id: string; engineId: string; engineName: string; enginePath: string; connectedAt: any; active?: boolean }
 type LogEntryItem  = { timestamp: any; dir: number; message: string }

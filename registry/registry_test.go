@@ -2,7 +2,7 @@ package registry_test
 
 import (
 	"fmt"
-	"prokishi/registry"
+	"shinte/prokishi/registry"
 	"sync"
 	"testing"
 	"time"

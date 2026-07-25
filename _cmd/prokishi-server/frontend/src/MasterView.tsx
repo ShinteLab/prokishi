@@ -20,7 +20,7 @@ import {
   Stop as StopIcon,
 } from '@mui/icons-material'
 import { Events } from '@wailsio/runtime'
-import { AdminService, ServerService } from '../bindings/wails'
+import { AdminService, ServerService } from '../bindings/prokishi-server'
 
 type EngineItem = { id: string; name: string; path: string; created: string }
 type CodeItem = { code: string; name: string; created: string; used: string; disabled: boolean }

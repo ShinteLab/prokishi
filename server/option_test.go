@@ -3,7 +3,7 @@ package server
 import (
 	"testing"
 
-	"prokishi/registry"
+	"shinte/prokishi/registry"
 )
 
 func TestVersion(t *testing.T) {

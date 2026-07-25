@@ -3,7 +3,7 @@ package server
 import (
 	"context"
 	"fmt"
-	"prokishi/db"
+	"shinte/prokishi/db"
 	"strings"
 
 	"github.com/google/uuid"

@@ -5,7 +5,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
-	"prokishi"
+	"shinte/prokishi"
 	"strings"
 	"testing"
 )

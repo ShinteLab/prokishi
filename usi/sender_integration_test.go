@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"prokishi/internal/testfakeengine"
-	"prokishi/usi"
+	"shinte/prokishi/internal/testfakeengine"
+	"shinte/prokishi/usi"
 )
 
 // TestSenderIntegrationRoundTrip spawns a real (built) fake-engine

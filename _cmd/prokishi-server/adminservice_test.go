@@ -4,7 +4,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"prokishi/db"
+	"shinte/prokishi/db"
 )
 
 // NOTE: AdminService.SaveClientConfig and AdminService.SelectEnginePath are

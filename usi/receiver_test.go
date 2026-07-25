@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"prokishi/usi"
+	"shinte/prokishi/usi"
 )
 
 // TestReceiverMultiLineInput verifies that feeding multi-line input through

@@ -6,10 +6,10 @@ import (
 	"log/slog"
 	"time"
 
-	"prokishi/api"
-	"prokishi/db"
-	"prokishi/registry"
-	"prokishi/usi"
+	"shinte/prokishi/api"
+	"shinte/prokishi/db"
+	"shinte/prokishi/registry"
+	"shinte/prokishi/usi"
 
 	"golang.org/x/xerrors"
 )

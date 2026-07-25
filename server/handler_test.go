@@ -9,11 +9,11 @@ import (
 	"testing"
 	"time"
 
-	"prokishi/api"
-	"prokishi/db"
-	"prokishi/internal/testfakeengine"
-	"prokishi/registry"
-	"prokishi/server"
+	"shinte/prokishi/api"
+	"shinte/prokishi/db"
+	"shinte/prokishi/internal/testfakeengine"
+	"shinte/prokishi/registry"
+	"shinte/prokishi/server"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"

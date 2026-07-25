@@ -4,8 +4,8 @@ import (
 	"context"
 	"testing"
 
-	"prokishi/db"
-	"prokishi/internal/testfakeengine"
+	"shinte/prokishi/db"
+	"shinte/prokishi/internal/testfakeengine"
 )
 
 // These tests confirm GenerateEngineId/RegisterEngineId/DeleteEngineId

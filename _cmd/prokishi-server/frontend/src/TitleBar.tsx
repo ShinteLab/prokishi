@@ -18,7 +18,7 @@ const btnBase = {
   color: 'text.secondary',
 } as const
 
-export type View = 'monitor' | 'master' | 'system'
+export type View = 'monitor' | 'master' | 'system' | 'board'
 
 interface TitleBarProps {
   title: string
@@ -77,6 +77,9 @@ export function TitleBar({ title, view, onNavigate, onClose }: TitleBarProps) {
       <Menu anchorEl={menuAnchor} open={!!menuAnchor} onClose={handleMenuClose}>
         <MenuItem selected={view === 'monitor'} onClick={() => navigate('monitor')}>
           モニター
+        </MenuItem>
+        <MenuItem selected={view === 'board'} onClick={() => navigate('board')}>
+          盤面
         </MenuItem>
         <MenuItem selected={view === 'master'} onClick={() => navigate('master')}>
           マスタ管理

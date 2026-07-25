@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { Box, Typography, LinearProgress, Chip } from '@mui/material'
-import { SystemService } from '../bindings/wails'
+import { SystemService } from '../bindings/prokishi-server'
 
 type ProcessCpuInfo = {
   connId: string

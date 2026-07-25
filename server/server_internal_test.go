@@ -6,9 +6,9 @@ import (
 	"sync"
 	"testing"
 
-	"prokishi/db"
-	"prokishi/internal/testfakeengine"
-	"prokishi/usi"
+	"shinte/prokishi/db"
+	"shinte/prokishi/internal/testfakeengine"
+	"shinte/prokishi/usi"
 )
 
 // chdirTemp creates a fresh temporary directory, changes the process's

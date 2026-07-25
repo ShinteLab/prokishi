@@ -92,7 +92,15 @@ The server includes a GUI built with Wails3 + React + MUI. Tabs:
 
 - **マスタ管理** — Engine and auth code CRUD (inline name editing, generate/register/delete)
 - **接続モニター** — Live connection monitoring
+- **盤面** — Shogi board display (`BoardView.tsx`). Uses `<shogi-board>` / `<shogi-hand>` from `@shinte/web` (repo `core/web`). Renders a SFEN, and can pull the latest `position` command from a connection's USI log; `resolvePosition` applies the `moves` (captures/promotions/drops) to show the current board + hands + side-to-move (move application is display-only, no legality check).
 - **サーバ設定** — Server config (port, auth toggle) with start/stop controls, client config export
+
+### 共有フロントパッケージ `@shinte/web`
+
+`core/web` の Web Component `<shogi-board>` と SFEN/USI ロジックを利用する。npm install せずに
+参照するため、`vite.config.ts` の `resolve.alias` と `tsconfig.json` の `paths` で
+`@shinte/web` → `../../../../core/web` に解決している(`server.fs.allow` にリポジトリルートを追加)。
+JSX で使うための型は `src/shogi-board.d.ts`、登録は `App.tsx` の副作用 import (`import '@shinte/web'`)。
 
 ### Database Schema
 

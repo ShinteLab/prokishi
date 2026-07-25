@@ -7,7 +7,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
-	"prokishi"
+	"shinte/prokishi"
 	"strings"
 
 	"github.com/BurntSushi/toml"

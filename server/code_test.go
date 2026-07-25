@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"prokishi/db"
+	"shinte/prokishi/db"
 )
 
 // These tests confirm GenerateCode/RegisterCode/DeleteCode correctly

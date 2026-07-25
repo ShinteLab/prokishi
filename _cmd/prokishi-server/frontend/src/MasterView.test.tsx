@@ -3,7 +3,7 @@ import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MasterView } from './MasterView'
 import { Events } from '@wailsio/runtime'
-import { AdminService, ServerService } from '../bindings/wails'
+import { AdminService, ServerService } from '../bindings/prokishi-server'
 
 // MasterView subscribes to the 'server-state' event to keep the running/
 // stopped chip in sync with the Go side.
@@ -61,7 +61,7 @@ describe('MasterView', () => {
     vi.mocked(AdminService.SaveClientConfig).mockReset().mockResolvedValue(undefined)
 
     vi.mocked(ServerService.GetState).mockReset().mockResolvedValue({ running: false, url: '' })
-    vi.mocked(ServerService.GetConfig).mockReset().mockResolvedValue({ host: '', port: 8080, autoStart: true })
+    vi.mocked(ServerService.GetConfig).mockReset().mockResolvedValue({ host: '', port: 8080, autoStart: true, useAuth: false })
     vi.mocked(ServerService.GetLocalIPs).mockReset().mockResolvedValue(['192.168.1.10'])
     vi.mocked(ServerService.SaveConfig).mockReset().mockResolvedValue(undefined)
     vi.mocked(ServerService.Start).mockReset().mockResolvedValue(undefined)

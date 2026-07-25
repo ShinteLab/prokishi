@@ -6,11 +6,13 @@ import {
 import { createTheme, ThemeProvider } from '@mui/material/styles'
 import CssBaseline from '@mui/material/CssBaseline'
 import { Events } from '@wailsio/runtime'
-import { WindowService } from '../bindings/wails'
+import { WindowService } from '../bindings/prokishi-server'
+import '@shinte/web' // <shogi-board> を customElements に登録(副作用 import)
 import { TitleBar, View } from './TitleBar'
 import { MonitorView } from './MonitorView'
 import { MasterView } from './MasterView'
 import { SystemView } from './SystemView'
+import { BoardView } from './BoardView'
 
 const darkTheme = createTheme({
   palette: { mode: 'dark' },
@@ -55,6 +57,7 @@ export default function App() {
         {view === 'monitor' && <MonitorView />}
         {view === 'master' && <MasterView />}
         {view === 'system' && <SystemView />}
+        {view === 'board' && <BoardView />}
       </Box>
 
       {/* 終了確認ダイアログ */}
