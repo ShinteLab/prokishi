@@ -20,13 +20,28 @@ import (
 	"google.golang.org/grpc"
 )
 
-func Run(ctx context.Context, host string, port int, opts ...Option) error {
-
+// Listen は host:port を bind してリスナを返す。ポート使用中などの
+// bind エラーをここで確定させ、呼び出し側が同期的に受け取れるようにする。
+func Listen(host string, port int) (net.Listener, error) {
 	addr := net.JoinHostPort(host, strconv.Itoa(port))
 	listener, err := net.Listen("tcp", addr)
 	if err != nil {
-		return xerrors.Errorf("net.Listen() error: %w", err)
+		return nil, xerrors.Errorf("net.Listen() error: %w", err)
 	}
+	return listener, nil
+}
+
+func Run(ctx context.Context, host string, port int, opts ...Option) error {
+	listener, err := Listen(host, port)
+	if err != nil {
+		return err
+	}
+	return Serve(ctx, listener, opts...)
+}
+
+// Serve は Listen 済みのリスナ上で gRPC サーバを動かす。ctx の完了か
+// SIGINT で GracefulStop する。リスナは戻る際にクローズされる。
+func Serve(ctx context.Context, listener net.Listener, opts ...Option) error {
 
 	slog.Info("server listening", "addr", listener.Addr())
 
@@ -38,18 +53,27 @@ func Run(ctx context.Context, host string, port int, opts ...Option) error {
 	}
 	RegisterServiceServer(s, merged.Registry, merged.UseAuth)
 
+	serveErr := make(chan error, 1)
 	go func() {
 		err := s.Serve(listener)
 		if err != nil {
 			log.Printf("Serve() error: %v", err)
 		}
+		serveErr <- err
 	}()
 
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, os.Interrupt)
+	defer signal.Stop(quit)
 	select {
 	case <-ctx.Done():
 	case <-quit:
+	case err := <-serveErr:
+		// Serve が自発的に落ちた場合はその原因を返す。
+		if err != nil {
+			return xerrors.Errorf("Serve() error: %w", err)
+		}
+		return nil
 	}
 
 	s.GracefulStop()
