@@ -41,7 +41,7 @@ describe('MonitorView', () => {
     vi.mocked(Events.On).mockClear()
     vi.mocked(DebugService.ListConnections).mockReset().mockResolvedValue([])
     vi.mocked(DebugService.GetLogs).mockReset().mockResolvedValue([])
-    vi.mocked(ServerService.GetState).mockReset().mockResolvedValue({ running: false, url: '' })
+    vi.mocked(ServerService.GetState).mockReset().mockResolvedValue({ running: false, url: '', err: '' })
   })
 
   it('renders the connection list from ListConnections', async () => {
