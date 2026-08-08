@@ -25,7 +25,7 @@ import { AdminService, ServerService } from '../bindings/prokishi-server'
 type EngineItem = { id: string; name: string; path: string; created: string }
 type CodeItem = { code: string; name: string; created: string; used: string; disabled: boolean }
 type ServerConfig = { host: string; port: number; autoStart: boolean; useAuth: boolean }
-type ServerState = { running: boolean; url: string }
+type ServerState = { running: boolean; url: string; err?: string }
 type Severity = 'success' | 'error'
 
 export function MasterView() {
@@ -64,7 +64,11 @@ export function MasterView() {
 
   // --- サーバ設定 ---
   useEffect(() => {
-    ServerService.GetState().then((s: any) => setServerState(s)).catch(() => {})
+    ServerService.GetState().then((s: any) => {
+      setServerState(s)
+      // 自動起動が失敗していた場合はここで初めて画面に出る。
+      if (s?.err && !s.running) notify(s.err, 'error')
+    }).catch(() => {})
     ServerService.GetConfig().then((c: any) => {
       if (c) { setCfg(c) }
     }).catch(() => {})
@@ -72,7 +76,10 @@ export function MasterView() {
 
     const unsub = Events.On('server-state', (e: any) => {
       const s: ServerState = e.data
-      if (s) setServerState(s)
+      if (!s) return
+      setServerState(s)
+      // サーバが自発的に落ちた場合（Stop() 経由の停止では err は空）。
+      if (s.err && !s.running) notify(s.err, 'error')
     })
     return () => { unsub() }
   }, [])
