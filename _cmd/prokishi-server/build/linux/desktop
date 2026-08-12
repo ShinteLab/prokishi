@@ -1,0 +1,13 @@
+[Desktop Entry]
+Version=1.0
+Name=prokishi-server
+Comment=Prokishi Server Admin
+# The Exec line includes %u to pass the URL to the application
+Exec=/usr/local/bin/prokishi-server %u
+Terminal=false
+Type=Application
+Icon=prokishi-server
+Categories=Utility;
+StartupWMClass=prokishi-server
+
+ 
