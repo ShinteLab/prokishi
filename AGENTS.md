@@ -9,6 +9,7 @@
 |---|---|---|
 | スキル `prokishi-change-api`（`_docs/skills/`） | gRPC の API を変える手順（再生成・サーバとクライアントの修正・新旧の互換性） | `api/api.proto` を触るとき |
 | スキル `prokishi-release`（`_docs/skills/`） | バージョンの上げ方と versionup → タグ → release の流れ | リリース・バージョンを上げるとき |
+| `TODO.md` | 未対応・今後（macOS / Linux でのクライアントのテストなど） | 機能を足すとき・動作確認するとき |
 
 ## 概要
 
