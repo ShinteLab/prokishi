@@ -57,11 +57,20 @@ description: prokishi のクライアントとサーバの間の gRPC API（api/
 ## 生成ツールのバージョン
 
 今の生成物は `protoc v4.25.2` / `protoc-gen-go v1.32.0` / `protoc-gen-go-grpc v1.3.0` で作られている
-（各 `.pb.go` の先頭に書いてある）。`go.mod` は `google.golang.org/protobuf v1.32.0` /
-`google.golang.org/grpc v1.61.0`。
+（各 `.pb.go` の先頭に書いてある）。`go.mod` は `google.golang.org/protobuf v1.36.11` /
+`google.golang.org/grpc v1.84.0`（ランタイムの方が新しいのは問題ない）。
 
 - 新しい `protoc-gen-go` / `protoc-gen-go-grpc` で生成すると、生成コードがより新しい
   ランタイムを要求して `go.mod` の更新が要ることがある。**生成後に `go build ./...` が通るか確かめ**、
   必要なら `go get` で上げる（上げたら `_cmd/prokishi-server` でも `go mod tidy` とビルドを確かめる）
+- ⚠️ ルートで `go mod tidy` すると `github.com/BurntSushi/toml` の require 行が消える
+  （使っているのが `go build ./...` の対象外の `_cmd/prokishi` だけのため）。消えたら
+  `go get github.com/BurntSushi/toml@<元の版>` で戻す
+
+## クライアントの接続
+
+`client.go` は `grpc.NewClient` を使う（接続は遅延）。最初の `Connection` を
+`grpc.WaitForReady(true)` と `connectTimeout`（3 秒）で呼び、つながらなければ
+`context deadline exceeded` で失敗する（INSTALL.md のエラー説明はこの文言に依存している）。
 - 差分に生成ツールのバージョン行の変化が出るのは問題ない
 - `protoc` 本体は PATH に無いことがある（プラグインは `go install` で入るが本体は別途入れる）

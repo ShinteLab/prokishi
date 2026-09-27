@@ -112,7 +112,6 @@ npm test
 | `db/` | CSVQ（CSV ファイルに SQL を投げる）による永続化。エンジンの登録と認証コード |
 | `registry/` | メモリ上のエンジン登録簿。接続の UUID → エンジンの `Sender` |
 | `internal/testfakeengine` | テスト専用。偽エンジンをビルドする（本物のエンジン無しでプロセス起動を試す） |
-| `wails/` | `package wails` の宣言だけの空パッケージ（中身は無い） |
 | `_cmd/prokishi/` | クライアントのエントリポイント（素の Go CLI） |
 | `_cmd/prokishi-server/` | サーバのエントリポイント（管理 UI 付きの Wails3 デスクトップアプリ） |
 
@@ -132,6 +131,10 @@ Wails3 + React + MUI で作った GUI。タイトルバーのメニューで画�
 - **システム監視**（`SystemView.tsx`） — CPU 使用率（全体・コア別・エンジンのプロセス別）。
 
 認証コードは `useAuth` がオンのときだけ検査する（既定はオフ）。停止したコードは `db.SelectCode` で弾かれる。
+
+⚠️ エンジン・認証コードの登録は管理画面だけで行う。**コマンド形式の登録処理を足さないこと**
+（リリース版は `-H windowsgui` でビルドされ、コマンドの出力が表示されない）。
+サブコマンドは `version` だけ（`command.go`）。
 
 ### 共有フロントパッケージ `@shinte/web`
 
