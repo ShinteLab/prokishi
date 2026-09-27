@@ -7,10 +7,10 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
-	"github.com/ShinteLab/prokishi"
 	"strings"
 
 	"github.com/BurntSushi/toml"
+	"github.com/ShinteLab/prokishi"
 	"golang.org/x/xerrors"
 )
 
@@ -94,7 +94,6 @@ func parseLogLevel(lv string) slog.Level {
 	default:
 		return slog.LevelWarn
 	}
-	return slog.LevelInfo
 }
 
 func loadIniFile() error {
