@@ -62,7 +62,9 @@ func run() error {
 	}
 
 	lv := parseLogLevel(iniFile.Level)
-	defer prokishi.SetLogFile(lv, "prokishi", dev).Close()
+	if fp := prokishi.SetLogFile(lv, "prokishi", dev); fp != nil {
+		defer fp.Close()
+	}
 
 	err = prokishi.Run(iniFile.Host,
 		iniFile.Port,

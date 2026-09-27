@@ -89,10 +89,10 @@ func run() error {
 	}
 
 	if dev {
-		defer prokishi.SetLog(lv, os.Stdout)
-	} else {
+		prokishi.SetLog(lv, os.Stdout)
+	} else if fp := prokishi.SetLogFile(lv, "prokishi-server", dev); fp != nil {
 		consoleLog = false
-		defer prokishi.SetLogFile(lv, "prokishi-server", dev).Close()
+		defer fp.Close()
 	}
 
 	reg := registry.New()
