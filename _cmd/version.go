@@ -14,16 +14,20 @@ import (
 
 // ★ コマンドが増えたらパス定数をここに追加する
 const (
-	versionFile = "./_cmd/prokishi-server/version"
+	versionFile = "./_cmd/prokishi-server/version" // マスタ
 	configYml   = "./_cmd/prokishi-server/build/config.yml"
 	packJsn     = "./_cmd/prokishi-server/frontend/package.json"
+
+	// クライアント（prokishi）はサーバと同じバージョンで配る
+	clientVersionFile = "./_cmd/prokishi/version"
 
 	// 複数コマンドがある場合は追加する
 	// subVersionFile = "./_cmd/sub/version"
 	// subConfigYml   = "./_cmd/sub/build/config.yml"
 	// subPackJsn     = "./_cmd/sub/frontend/package.json"
 
-	configRg  = `version:\s*"([0-9]+\.[0-9]+\.[0-9]+)"`
+	// 行頭から空白だけで始まる行に限る（config.yml の ios 用のコメント行 `#   version: "..."` に一致させない）
+	configRg  = `^\s*version:\s*"([0-9]+\.[0-9]+\.[0-9]+)"`
 	configFmt = `  version: "%v"`
 	packRg    = `"version":\s*"([0-9]+\.[0-9]+\.[0-9]+)"`
 	packFmt   = `  "version": "%v",`
@@ -146,6 +150,12 @@ type rgSet struct {
 }
 
 func write(v *ver) error {
+	// マスタ以外の version ファイル（引数なしの同期でも書く）
+	if err := os.WriteFile(clientVersionFile, []byte(v.String()), 0644); err != nil {
+		return err
+	}
+	fmt.Println("Write:", clientVersionFile)
+
 	// ★ 複数コマンドがある場合は ops にエントリを追加する
 	ops := []*op{
 		{configYml, "", v, []*rgSet{{configRg, configFmt, nil}}},
