@@ -6,11 +6,12 @@ import (
 	"log/slog"
 	"net"
 	"os"
-	"github.com/ShinteLab/prokishi/api"
-	"github.com/ShinteLab/prokishi/usi"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/ShinteLab/prokishi/api"
+	"github.com/ShinteLab/prokishi/usi"
 
 	"golang.org/x/xerrors"
 	"google.golang.org/grpc"

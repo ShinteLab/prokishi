@@ -9,11 +9,12 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"strconv"
+	"sync"
+
 	"github.com/ShinteLab/prokishi"
 	"github.com/ShinteLab/prokishi/registry"
 	"github.com/ShinteLab/prokishi/server"
-	"strconv"
-	"sync"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
 )

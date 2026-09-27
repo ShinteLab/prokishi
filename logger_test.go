@@ -5,9 +5,10 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
-	"github.com/ShinteLab/prokishi"
 	"strings"
 	"testing"
+
+	"github.com/ShinteLab/prokishi"
 )
 
 func TestGetRunDirDev(t *testing.T) {

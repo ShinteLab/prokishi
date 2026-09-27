@@ -8,12 +8,13 @@ import (
 	"net"
 	"os"
 	"os/signal"
+	"strconv"
+	"sync"
+
 	"github.com/ShinteLab/prokishi/api"
 	"github.com/ShinteLab/prokishi/db"
 	"github.com/ShinteLab/prokishi/registry"
 	"github.com/ShinteLab/prokishi/usi"
-	"strconv"
-	"sync"
 
 	"github.com/google/uuid"
 	"golang.org/x/xerrors"
@@ -79,7 +80,6 @@ func Serve(ctx context.Context, listener net.Listener, opts ...Option) error {
 	s.GracefulStop()
 	return nil
 }
-
 
 type Server struct {
 	api.ConnectionServiceServer
@@ -153,4 +153,3 @@ func (s *Server) startEngine(engineID string) (connID string, engineName string,
 	s.engines.Store(connID, engine)
 	return connID, e.Name, e.Path, engine.Pid(), nil
 }
-
