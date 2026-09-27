@@ -18,6 +18,9 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 )
 
+// サーバへの接続を待つ時間
+const connectTimeout = 3 * time.Second
+
 type Client struct {
 	ctx       context.Context
 	conn      *grpc.ClientConn
@@ -56,15 +59,14 @@ func NewClient(ctx context.Context, conf *Config, quit chan os.Signal) (*Client,
 // サーバとの接続
 func (cli *Client) dial(host string, port int) error {
 
+	// NewClient はここでは接続しない。実際の接続は connect() の最初の RPC で行う
 	addr := net.JoinHostPort(host, strconv.Itoa(port))
-	conn, err := grpc.Dial(
+	conn, err := grpc.NewClient(
 		addr,
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
-		grpc.WithTimeout(3*time.Second),
-		grpc.WithBlock(),
 	)
 	if err != nil {
-		return xerrors.Errorf("grpc.Dial() error: %w", err)
+		return xerrors.Errorf("grpc.NewClient() error: %w", err)
 	}
 	cli.conn = conn
 
@@ -81,7 +83,10 @@ func (cli *Client) connect(c *Config) error {
 	}
 
 	//サーバからコネクションIDを取得
-	res, err := connCli.Connection(cli.ctx, req)
+	//サーバにつながるまで connectTimeout だけ待つ（つながらなければ context deadline exceeded）
+	ctx, cancel := context.WithTimeout(cli.ctx, connectTimeout)
+	defer cancel()
+	res, err := connCli.Connection(ctx, req, grpc.WaitForReady(true))
 	if err != nil {
 		return xerrors.Errorf("api.Connection() error: %w", err)
 	}
