@@ -3,6 +3,13 @@
 このリポジトリで作業するコーディングエージェント向けの指示。
 リポジトリ全体の方針はルート（shinte）の `AGENTS.md` を参照。
 
+**このファイルには概要と制約だけを置く。** 作業の手順は `_docs/skills/` にある。
+
+| 置き場所 | 中身 | 読むとき |
+|---|---|---|
+| スキル `prokishi-change-api`（`_docs/skills/`） | gRPC の API を変える手順（再生成・サーバとクライアントの修正・新旧の互換性） | `api/api.proto` を触るとき |
+| スキル `prokishi-release`（`_docs/skills/`） | バージョンの上げ方と versionup → タグ → release の流れ | リリース・バージョンを上げるとき |
+
 ## 概要
 
 Prokishi は Go で書いた USI（Universal Shogi Interface）プロトコルのプロキシ。将棋エンジンを
@@ -42,17 +49,16 @@ cd _cmd/prokishi-server
 wails3 build
 ```
 
-### バージョン管理
+### 開発モードとリリースモード
 
-サーバのバージョンは `_cmd/prokishi-server/version` に置き、`//go:embed version` で埋め込む。
-モードはビルドタグで切り替える。
+設定・DB・ログの置き場所がモードで変わる（解決は `prokishi.GetRunDir(dev)`、`logger.go`）。
 
-- `//go:build !production` → `mode_dev.go`（開発モード: 設定・DB をカレントディレクトリから読む）
-- `//go:build production` → `mode_prod.go`（リリースモード: 実行ファイルのディレクトリから読む）
+- サーバ: ビルドタグで切り替える。`!production` → `mode_dev.go`（カレントディレクトリ）、
+  `production` → `mode_prod.go`（実行ファイルのディレクトリ）。Wails3 の Taskfile がリリースビルドで
+  `-tags production` を使うのに合わせている
+- クライアント: `-ldflags "-X main.version=..."` が空なら開発モード
 
-Wails3 の Taskfile がリリースビルドで `-tags production` を使うのに合わせている。
-クライアントは `-ldflags "-X main.version=..."` で埋め込み、version が空なら開発モードとして扱う。
-どちらも置き場所の解決は `prokishi.GetRunDir(dev)`（`logger.go`）。
+バージョン番号の扱いは `prokishi-release` を参照。
 
 ## テスト
 
@@ -75,23 +81,11 @@ npm test
 エンジンを起動するテストは本物のエンジンを使わず、`internal/testfakeengine` が
 テスト時にビルドする偽エンジン（stdin を返すだけのプログラム）を使う。
 
-## Protobuf の再生成
+## API とリリース
 
-`api/api.proto` を変えたら Go のバインディングを作り直す。`go_package` が `"../api"` なので
-`api/` の中で実行する。
-
-```powershell
-cd api
-protoc --go_out=. --go-grpc_out=. api.proto
-```
-
-## CI/CD
-
-- `.github/workflows/versionup.yml` — main への push でパッチバージョンを上げ、PR を作って自動マージし、
-  タグを打つ。`GITHUB_TOKEN` で push したタグは後続のワークフローを起動しないため、
-  `MY_GITHUB_TOKEN`（PAT）を使う。
-- `.github/workflows/release.yml` — タグの push で、サーバ（Windows のみ。matrix で増やせる）と
-  クライアント（Windows / macOS / Linux）をビルドし、下書きの GitHub Release を作る。
+- `api/api.proto` を変えるとき → `prokishi-change-api`。⚠️ 生成物（`api/*.pb.go`）を手で編集しないこと。
+  クライアントとサーバは別々に更新されるので、既存フィールドの番号・型・意味を変えないこと
+- リリース → `prokishi-release`。`versionup.yml`（main 向け PR のマージ）→ タグ → `release.yml`（下書きの Release）
 
 ## アーキテクチャ
 
