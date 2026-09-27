@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/BurntSushi/toml"
@@ -63,10 +64,27 @@ func TestCreateIniFile(t *testing.T) {
 	}
 }
 
+// TestVersionEmbedded checks that the embedded version file is used and
+// matches the master (_cmd/prokishi-server/version), which _cmd/version.go
+// keeps in sync.
+func TestVersionEmbedded(t *testing.T) {
+	if version == "" {
+		t.Fatal("embedded version is empty")
+	}
+	master, err := os.ReadFile(filepath.Join("..", "prokishi-server", "version"))
+	if err != nil {
+		t.Fatalf("read master version: %v", err)
+	}
+	if want := strings.TrimSpace(string(master)); version != want {
+		t.Errorf("version = %q, want %q (run `go run _cmd/version.go` to sync)", version, want)
+	}
+}
+
 // TestLoadIniFileMissing checks that a missing prokishi.ini is created as a
 // template and reported as errIniCreated, without reading os.Stdin (stdin is
 // the USI stream from the shogi GUI).
 func TestLoadIniFileMissing(t *testing.T) {
+	skipUnlessDevMode(t)
 	origWd, err := os.Getwd()
 	if err != nil {
 		t.Fatalf("os.Getwd() error: %v", err)
@@ -94,6 +112,7 @@ func TestLoadIniFileMissing(t *testing.T) {
 // TestLoadIniFileExisting exercises the "file already exists" branch of
 // loadIniFile().
 func TestLoadIniFileExisting(t *testing.T) {
+	skipUnlessDevMode(t)
 	origWd, err := os.Getwd()
 	if err != nil {
 		t.Fatalf("os.Getwd() error: %v", err)
@@ -133,9 +152,9 @@ func TestLoadIniFileExisting(t *testing.T) {
 		t.Fatalf("fp.Close() error: %v", err)
 	}
 
-	// version is "" under `go test` (no -ldflags), so loadIniFile()
-	// resolves dev-mode via prokishi.GetRunDir(true) == os.Getwd(),
-	// which matches the tempdir we just chdir'd into.
+	// devMode is true under `go test` (no -tags production), so loadIniFile()
+	// resolves prokishi.GetRunDir(true) == os.Getwd(), which matches the
+	// tempdir we just chdir'd into.
 	iniFile = IniFile{}
 	if err := loadIniFile(); err != nil {
 		t.Fatalf("loadIniFile() error: %v", err)
@@ -143,5 +162,14 @@ func TestLoadIniFileExisting(t *testing.T) {
 
 	if iniFile != want {
 		t.Errorf("loadIniFile() populated iniFile = %+v, want %+v", iniFile, want)
+	}
+}
+
+// skipUnlessDevMode skips tests that rely on dev mode resolving files from
+// the current directory (they chdir into a tempdir).
+func skipUnlessDevMode(t *testing.T) {
+	t.Helper()
+	if !devMode {
+		t.Skip("requires dev mode (built without -tags production)")
 	}
 }

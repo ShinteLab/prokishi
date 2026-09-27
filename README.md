@@ -62,7 +62,7 @@ id name,id author,quit以外のコマンドはUSIプロトコルを純粋に転�
 - `id name {engine_name}(prokishi 0.1.0)`
 - `id author {engine_author}(secondarykey)`
 
-バージョンを指定せずにビルドした prokishi では `prokishi Development` になります。
+開発用にビルドした prokishi（`-tags production` なし）では `prokishi Development` になります。
 
 quit では終了処理が入ります。
 
@@ -99,15 +99,16 @@ prokishi-server は実行ファイルと同じ場所に `prokishi-server.log` �
 - 開発用: 作業ディレクトリ（カレントディレクトリ）
 - リリース用: 実行ファイルのあるディレクトリ
 
-prokishi はビルド時にバージョンを指定したかどうかで判定します。
-その為、新たにビルドしてご利用する場合はバージョンの指定を行ってください。
+prokishi はビルドタグ `production` を付けたかどうかで判定します。
+その為、新たにビルドしてご利用する場合は `-tags production` を付けてください。
 
 ```
-go build -ldflags "-X main.version=0.0.0" -o prokishi.exe ./_cmd/prokishi/
+go build -tags production -o prokishi.exe ./_cmd/prokishi/
 ```
 
 という風にビルドしてください。
-同じ名称でビルドして利用される場合はできればバージョンはそれとわかるようにしてください。
+バージョンは `_cmd/prokishi/version` の値が埋め込まれ、`prokishi version` で確認できます。
+（`_cmd/prokishi-server/version` がマスタで、`go run _cmd/version.go` で揃えます）
 
 prokishi-server は Wails3 のデスクトップアプリです。
 `wails3 build` がリリース用（`-tags production`）、`wails3 dev` が開発用になります。

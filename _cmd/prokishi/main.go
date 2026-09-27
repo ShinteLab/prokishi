@@ -1,6 +1,7 @@
 package main
 
 import (
+	_ "embed"
 	"errors"
 	"flag"
 	"fmt"
@@ -19,8 +20,11 @@ const iniFileName = "prokishi.ini"
 // prokishi.ini が無かったので雛形を作ったことを表す
 var errIniCreated = errors.New("prokishi.ini が無かったため雛形を作成しました")
 
-// go build -ldflags "-X main.version=?"
-var version string
+// バージョンは _cmd/prokishi-server/version がマスタで、_cmd/version.go が同じ値をここへ書く
+//
+//go:embed version
+var versionEmbed string
+var version = strings.TrimSpace(versionEmbed)
 
 type IniFile struct {
 	Host     string `toml:"host"`
@@ -48,7 +52,7 @@ func main() {
 
 func run() error {
 
-	dev := version == ""
+	dev := devMode
 
 	args := flag.Args()
 	if len(args) >= 1 {
@@ -69,11 +73,17 @@ func run() error {
 		defer fp.Close()
 	}
 
+	// 開発ビルドでは id name に "Development" と出す（従来どおり）
+	v := version
+	if dev {
+		v = ""
+	}
+
 	err = prokishi.Run(iniFile.Host,
 		iniFile.Port,
 		prokishi.Code(iniFile.Code),
 		prokishi.Engine(iniFile.EngineId),
-		prokishi.Version(version))
+		prokishi.Version(v))
 	if err != nil {
 		return xerrors.Errorf("prokishi.Run() error: %w", err)
 	}
@@ -98,8 +108,7 @@ func parseLogLevel(lv string) slog.Level {
 
 func loadIniFile() error {
 
-	//versionに値が入っているかで開発環境を判定
-	dir, err := prokishi.GetRunDir(version == "")
+	dir, err := prokishi.GetRunDir(devMode)
 	if err != nil {
 		return fmt.Errorf("実行位置の取得に失敗しました")
 	}

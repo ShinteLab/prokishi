@@ -7,24 +7,30 @@ description: prokishi（クライアント）と prokishi-server を配るまで
 
 ## バージョンの置き場所
 
-**`_cmd/prokishi-server/version` が唯一の元。** クライアントも同じ番号で配る
-（release.yml がこのファイルを読んで `-ldflags "-X main.version=..."` に渡す）。
+**`_cmd/prokishi-server/version` がマスタ。** クライアントも同じ番号で配る。
+サーバもクライアントも、自分の `version` ファイルを `//go:embed version` で埋め込む。
 
-`_cmd/version.go`（`//go:build ignore` の単独スクリプト）が、次の 3 か所を揃える。
+`_cmd/version.go`（`//go:build ignore` の単独スクリプト）が、次の 4 か所を揃える。
 
 | ファイル | 書き換える箇所 |
 |---|---|
-| `_cmd/prokishi-server/version` | ファイル全体 |
-| `_cmd/prokishi-server/build/config.yml` | `info.version` |
+| `_cmd/prokishi-server/version` | ファイル全体（マスタ） |
+| `_cmd/prokishi/version` | ファイル全体（クライアント） |
+| `_cmd/prokishi-server/build/config.yml` | `info.version`（コメント行の `version:` は対象外） |
 | `_cmd/prokishi-server/frontend/package.json` | `"version"` |
 
 ```powershell
-go run _cmd/version.go            # 引数なし: version ファイルの値で他の 2 つを揃えるだけ
+go run _cmd/version.go            # 引数なし: マスタの値で他の 3 つを揃えるだけ
 go run _cmd/version.go 0.2.0      # 指定した番号にする
 go run _cmd/version.go -bump      # 対話でパッチ / マイナー / メジャーを選ぶ（人が実行する用）
 ```
 
 - ⚠️ **エージェントは `-bump` を使わない**（標準入力を待つ）。番号を引数で渡す
+- `_cmd/prokishi/version` がマスタとずれると `_cmd/prokishi` のテスト（`TestVersionEmbedded`）が落ちる。
+  引数なしの `go run _cmd/version.go` で揃える
+- 開発 / リリースの切り替えはバージョンではなく `production` ビルドタグ（サーバもクライアントも）。
+  ⚠️ **release.yml のクライアントのビルドから `-tags production` を外さないこと**
+  （外すと配布物が開発モードになり、prokishi.ini を実行ファイルの場所ではなくカレントディレクトリから読む）
 - ⚠️ **`version` ファイルだけを手で書き換えない。** `config.yml` と `package.json` がずれる
 
 ## 流れ
@@ -34,7 +40,7 @@ feature ブランチ ──PR──▶ main にマージ
                            │ versionup.yml（PR が merged で閉じたとき）
                            ▼
             タグ v<version> が既にある → パッチ +1 / 無い → そのまま
-            version.go で 3 か所を更新、wails3 update build-assets
+            version.go で 4 か所を更新、wails3 update build-assets
             chore/version-X ブランチ → PR → 自動マージ → タグ vX を push
                            │ release.yml（v* のタグ push）
                            ▼
@@ -64,7 +70,9 @@ feature ブランチ ──PR──▶ main にマージ
 
 ```powershell
 go test ./...
-go build -ldflags "-X main.version=0.0.0" -o prokishi.exe ./_cmd/prokishi/
+go test ./_cmd/prokishi/
+go build -tags production -o prokishi.exe ./_cmd/prokishi/
+.\prokishi.exe version
 
 cd _cmd/prokishi-server
 go test ./...

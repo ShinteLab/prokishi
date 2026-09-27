@@ -34,7 +34,7 @@ Windows の ShogiGUI でも手動で動作確認する。
 ### prokishi クライアント（素の Go CLI）
 
 ```powershell
-go build -ldflags "-X main.version=0.0.0" -o prokishi.exe ./_cmd/prokishi/
+go build -tags production -o prokishi.exe ./_cmd/prokishi/   # リリース用（タグなしは開発用）
 ```
 
 ### prokishi-server（Wails3 デスクトップアプリ）
@@ -53,12 +53,13 @@ wails3 build
 
 設定・DB・ログの置き場所がモードで変わる（解決は `prokishi.GetRunDir(dev)`、`logger.go`）。
 
-- サーバ: ビルドタグで切り替える。`!production` → `mode_dev.go`（カレントディレクトリ）、
-  `production` → `mode_prod.go`（実行ファイルのディレクトリ）。Wails3 の Taskfile がリリースビルドで
-  `-tags production` を使うのに合わせている
-- クライアント: `-ldflags "-X main.version=..."` が空なら開発モード
+サーバもクライアントもビルドタグで切り替える。`!production` → `mode_dev.go`（カレントディレクトリ）、
+`production` → `mode_prod.go`（実行ファイルのディレクトリ）。Wails3 の Taskfile がリリースビルドで
+`-tags production` を使うのに合わせていて、クライアントは release.yml が `-tags production` を付ける。
+開発用のクライアントは `id name` に付けるバージョンを `Development` にする。
 
-バージョン番号の扱いは `prokishi-release` を参照。
+バージョン番号は各アプリの `version` ファイルを `//go:embed` する（`_cmd/prokishi-server/version` がマスタ）。
+`prokishi version` / `prokishi-server version` で表示できる。扱いは `prokishi-release` を参照。
 
 ## テスト
 
