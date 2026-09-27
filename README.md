@@ -116,6 +116,7 @@ wails3 build
 
 ```
 go test ./...
+go test ./_cmd/prokishi/
 go test -tags integration ./usi/...
 
 cd _cmd/prokishi-server

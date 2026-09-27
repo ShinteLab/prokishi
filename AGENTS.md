@@ -64,7 +64,7 @@ wails3 build
 
 ```powershell
 go test ./...
-go test ./usi/...
+go test ./_cmd/prokishi/      # _cmd 配下は ./... に含まれない
 
 # 結合テスト（ビルドタグ integration）
 go test -tags integration ./usi/...
@@ -152,7 +152,11 @@ CSVQ（CSV ファイルに対する SQL）。置き場所は `GetRunDir` の下�
 
 ### クライアントの設定
 
-`prokishi.ini`（TOML）は初回起動時に自動で作られる。
+`prokishi.ini`（TOML）は実行ファイルと同じ場所（開発モードはカレントディレクトリ）に置く。
+無ければ下の雛形を作り、`errIniCreated` で終了する。
+
+⚠️ クライアントの標準入出力は将棋 GUI との USI のやり取りそのもの。**標準入力を読んで問い合わせたり、
+標準出力に USI 以外を書いたりしないこと**（メッセージは標準エラーかログへ）。
 
 ```toml
 host = "localhost"
