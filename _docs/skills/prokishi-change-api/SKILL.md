@@ -30,7 +30,7 @@ description: prokishi のクライアントとサーバの間の gRPC API（api/
    - RPC を足したら `server/server.go` の `Server` 構造体への埋め込みと `api.Register...Server` も足す
    - **新しい RPC も `code` を受け取り、`verifyAuthentication` を通すこと**
      （既存の RPC はすべて毎回認証している。接続 ID が要るものは `getEngine` 経由でよい）
-   - 管理 UI の接続モニターに出したい情報は `registry`（`AppendLog` など）に流す
+   - 管理 UI のモニター画面に出したい情報は `registry`（`AppendLog` など）に流す
 4. テストを足して確かめる
 
    ```powershell
