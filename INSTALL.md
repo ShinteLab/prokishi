@@ -123,8 +123,8 @@ logLevel = "warn"
 2. **prokishi（Windows は prokishi.exe）と同じ場所に prokishi.ini を置きます**
 3. 将棋ソフトのエンジン登録で prokishi を選びます
 
-prokishi.ini が無い状態で起動すると、作成するかどうかをコンソールで問い合わせる為、将棋ソフトからの登録は失敗します。
-先に prokishi.ini を置いてから登録してください。
+prokishi.ini が無い状態で起動すると、同じ場所に prokishi.ini の雛形（host が localhost、engineId が空）を作成して終了します。
+この場合、将棋ソフトからの登録は失敗しますので、作成された prokishi.ini を書き換えるか、prokishi-server で作成したものに置き換えてから登録し直してください。
 
 登録に成功すると、エンジン名は `{エンジンの名前}(prokishi {バージョン})` と表示されます。
 接続中の様子は prokishi-server の「モニター」で確認できます。

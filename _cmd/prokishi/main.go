@@ -1,7 +1,7 @@
 package main
 
 import (
-	"bufio"
+	"errors"
 	"flag"
 	"fmt"
 	"log/slog"
@@ -15,6 +15,9 @@ import (
 )
 
 const iniFileName = "prokishi.ini"
+
+// prokishi.ini が無かったので雛形を作ったことを表す
+var errIniCreated = errors.New("prokishi.ini が無かったため雛形を作成しました")
 
 // go build -ldflags "-X main.version=?"
 var version string
@@ -102,20 +105,15 @@ func loadIniFile() error {
 		return fmt.Errorf("実行位置の取得に失敗しました")
 	}
 
+	// 標準入出力は将棋ソフトとの USI のやり取りに使うので、ここで問い合わせない。
+	// 雛形だけ作って終了し、engineId などを設定してもらう
 	p := filepath.Join(dir, iniFileName)
 	if _, err := os.Stat(p); err != nil {
-		fmt.Printf("%s not exists,\ncreat?[Y/n]:", p)
-		cmd := bufio.NewScanner(os.Stdin)
-		cmd.Scan()
-		if isYes(cmd.Text()) {
-			err := createIniFile(p)
-			if err != nil {
-				return fmt.Errorf("createInitFile error: %w", err)
-			}
-
-		} else {
-			return fmt.Errorf("%s が存在しません", p)
+		err := createIniFile(p)
+		if err != nil {
+			return fmt.Errorf("createIniFile error: %w", err)
 		}
+		return fmt.Errorf("%w: %s を設定してから起動し直してください", errIniCreated, p)
 	}
 	_, err = toml.DecodeFile(p, &iniFile)
 	if err != nil {
@@ -145,12 +143,4 @@ func createIniFile(p string) error {
 		return xerrors.Errorf("toml.Encode() error: %w", err)
 	}
 	return nil
-}
-
-func isYes(cmd string) bool {
-	v := strings.ToLower(cmd)
-	if v == "" || v == "y" {
-		return true
-	}
-	return false
 }

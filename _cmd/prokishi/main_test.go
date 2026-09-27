@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -37,29 +38,6 @@ func TestParseLogLevel(t *testing.T) {
 	}
 }
 
-func TestIsYes(t *testing.T) {
-	tests := []struct {
-		name string
-		in   string
-		want bool
-	}{
-		{name: "empty string is yes", in: "", want: true},
-		{name: "lowercase y is yes", in: "y", want: true},
-		{name: "uppercase Y is yes", in: "Y", want: true},
-		{name: "n is no", in: "n", want: false},
-		{name: "full word yes is not accepted", in: "yes", want: false},
-		{name: "arbitrary text is no", in: "nope", want: false},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := isYes(tt.in); got != tt.want {
-				t.Errorf("isYes(%q) = %v, want %v", tt.in, got, tt.want)
-			}
-		})
-	}
-}
-
 func TestCreateIniFile(t *testing.T) {
 	tmp := t.TempDir()
 	p := filepath.Join(tmp, iniFileName)
@@ -85,10 +63,36 @@ func TestCreateIniFile(t *testing.T) {
 	}
 }
 
-// TestLoadIniFileExisting exercises only the "file already exists" branch of
-// loadIniFile(). The "no file exists, prompt via os.Stdin" branch is skipped
-// here because it reassigns process-wide os.Stdin, which is flaky/unsafe to
-// exercise in a normal test.
+// TestLoadIniFileMissing checks that a missing prokishi.ini is created as a
+// template and reported as errIniCreated, without reading os.Stdin (stdin is
+// the USI stream from the shogi GUI).
+func TestLoadIniFileMissing(t *testing.T) {
+	origWd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("os.Getwd() error: %v", err)
+	}
+	defer func() {
+		if err := os.Chdir(origWd); err != nil {
+			t.Fatalf("failed to restore cwd: %v", err)
+		}
+	}()
+
+	tmp := t.TempDir()
+	if err := os.Chdir(tmp); err != nil {
+		t.Fatalf("os.Chdir(%q) error: %v", tmp, err)
+	}
+
+	err = loadIniFile()
+	if !errors.Is(err, errIniCreated) {
+		t.Fatalf("loadIniFile() error = %v, want errIniCreated", err)
+	}
+	if _, err := os.Stat(filepath.Join(tmp, iniFileName)); err != nil {
+		t.Errorf("template %s was not created: %v", iniFileName, err)
+	}
+}
+
+// TestLoadIniFileExisting exercises the "file already exists" branch of
+// loadIniFile().
 func TestLoadIniFileExisting(t *testing.T) {
 	origWd, err := os.Getwd()
 	if err != nil {
