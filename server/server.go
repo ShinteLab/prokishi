@@ -3,8 +3,6 @@ package server
 import (
 	"context"
 	"fmt"
-	"log"
-	"log/slog"
 	"net"
 	"os"
 	"os/signal"
@@ -13,6 +11,7 @@ import (
 
 	"github.com/ShinteLab/prokishi/api"
 	"github.com/ShinteLab/prokishi/db"
+	"github.com/ShinteLab/prokishi/internal/logs"
 	"github.com/ShinteLab/prokishi/registry"
 	"github.com/ShinteLab/prokishi/usi"
 
@@ -44,7 +43,7 @@ func Run(ctx context.Context, host string, port int, opts ...Option) error {
 // SIGINT で GracefulStop する。リスナは戻る際にクローズされる。
 func Serve(ctx context.Context, listener net.Listener, opts ...Option) error {
 
-	slog.Info("server listening", "addr", listener.Addr())
+	logs.L().Info("server listening", "addr", listener.Addr())
 
 	s := grpc.NewServer()
 
@@ -58,7 +57,7 @@ func Serve(ctx context.Context, listener net.Listener, opts ...Option) error {
 	go func() {
 		err := s.Serve(listener)
 		if err != nil {
-			log.Printf("Serve() error: %v", err)
+			logs.L().Error("Serve() error", "err", err)
 		}
 		serveErr <- err
 	}()
@@ -117,12 +116,12 @@ func (s *Server) verifyAuthentication(code string) bool {
 	ctx := context.Background()
 	c, err := db.SelectCode(ctx, code)
 	if err != nil {
-		slog.Error(err.Error())
+		logs.L().Error(err.Error())
 		return false
 	}
 
 	if c == nil {
-		slog.Warn(fmt.Sprintf("code not found:[%s]", code))
+		logs.L().Warn(fmt.Sprintf("code not found:[%s]", code))
 		return false
 	}
 	return true

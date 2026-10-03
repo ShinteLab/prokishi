@@ -3,11 +3,11 @@ package server
 import (
 	"context"
 	"fmt"
-	"log/slog"
 	"time"
 
 	"github.com/ShinteLab/prokishi/api"
 	"github.com/ShinteLab/prokishi/db"
+	"github.com/ShinteLab/prokishi/internal/logs"
 	"github.com/ShinteLab/prokishi/registry"
 	"github.com/ShinteLab/prokishi/usi"
 
@@ -23,7 +23,7 @@ func (s *Server) Connection(ctx context.Context, r *api.ConnectionRequest) (*api
 
 	if r.Code != "" {
 		if err := db.UpdateCode(r.Code); err != nil {
-			slog.Warn("UpdateCode failed", "err", err)
+			logs.L().Warn("UpdateCode failed", "err", err)
 		}
 	}
 
@@ -32,7 +32,7 @@ func (s *Server) Connection(ctx context.Context, r *api.ConnectionRequest) (*api
 		return nil, xerrors.Errorf("startEngine() error: %w", err)
 	}
 
-	slog.Info(fmt.Sprintf("register Engine map:%s", connID))
+	logs.L().Info(fmt.Sprintf("register Engine map:%s", connID))
 
 	if s.registry != nil {
 		s.registry.Add(registry.Connection{
@@ -58,7 +58,7 @@ func (s *Server) Send(ctx context.Context, r *api.SendRequest) (*api.SendRespons
 
 	quit := r.Cmd == "quit"
 
-	slog.Debug(fmt.Sprintf("USI(I):%s", r.Cmd))
+	logs.L().Debug(fmt.Sprintf("USI(I):%s", r.Cmd))
 	if err = e.Send(r.Cmd); err != nil {
 		return nil, xerrors.Errorf("Send() error: %w", err)
 	}
@@ -68,7 +68,7 @@ func (s *Server) Send(ctx context.Context, r *api.SendRequest) (*api.SendRespons
 	}
 
 	if quit {
-		slog.Info(fmt.Sprintf("remove Engine map:%s", r.ConnectionId))
+		logs.L().Info(fmt.Sprintf("remove Engine map:%s", r.ConnectionId))
 		s.engines.Delete(r.ConnectionId)
 		if s.registry != nil {
 			s.registry.Remove(r.ConnectionId)
@@ -87,7 +87,7 @@ func (s *Server) Receive(r *api.ReceiveRequest, stream api.USIReceiveService_Rec
 	}
 
 	for v := range e.OutCh {
-		slog.Debug(fmt.Sprintf("USI(O):%s", v))
+		logs.L().Debug(fmt.Sprintf("USI(O):%s", v))
 		if s.registry != nil {
 			s.registry.AppendLog(r.ConnectionId, registry.DirRecv, v)
 		}

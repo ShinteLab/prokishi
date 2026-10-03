@@ -59,6 +59,19 @@ wails3 build
 `-tags production` を使うのに合わせていて、クライアントは release.yml が `-tags production` を付ける。
 開発用のクライアントは `id name` に付けるバージョンを `Development` にする。
 
+### ログ
+
+**ライブラリ（ルート・`server`・`usi`）はログの設定を持たない**（2026-10-03。ワークスペースの約束）。
+出すのは `internal/logs` の `logs.L()` 経由で、使う側は `prokishi.SetLogger(*slog.Logger)` で
+差し替える（何もしなければ `slog.Default()`）。
+
+- ⚠️ **ライブラリから `slog.SetDefault` を呼ばないこと**・`slog.Info` などの大域関数を直接呼ばないこと
+  （呼ぶ側がレベルも出力先も変えられなくなる）。独自のレベル型やオプションも足さない
+- ログファイルは `prokishi.NewFileLogger(lv, name, dev)` が作って **Logger を返すだけ**。
+  既定にするのはアプリ（`_cmd/prokishi` はファイル、`_cmd/prokishi-server` は開発時は標準出力・リリースはファイル）
+- ⚠️ **クライアントは標準出力へログを向けないこと**（USI のやり取りそのもの）。ファイルを作れなければ標準エラー
+- ⚠️ **ログファイルは main がエラーを書いてから閉じる**（`run` の `defer` で閉じると、終了の理由が残らない）
+
 バージョン番号は各アプリの `version` ファイルを `//go:embed` する（`_cmd/prokishi-server/version` がマスタ）。
 `prokishi version` / `prokishi-server version` で表示できる。扱いは `prokishi-release` を参照。
 

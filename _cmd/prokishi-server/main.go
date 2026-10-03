@@ -5,6 +5,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"log"
 	"log/slog"
 	"os"
@@ -48,6 +49,10 @@ func init() {
 
 var consoleLog = true
 
+// logFile は run が開いたログファイル。**main がエラーを書いてから閉じる**
+// （run の中で閉じると、終了の理由がログに残らない）。
+var logFile io.Closer
+
 func main() {
 	flag.Parse()
 	err := run()
@@ -57,6 +62,9 @@ func main() {
 			slog.Error(msg)
 		}
 		fmt.Fprintln(os.Stderr, msg)
+	}
+	if logFile != nil {
+		logFile.Close()
 	}
 }
 
@@ -89,11 +97,16 @@ func run() error {
 		lv = slog.LevelWarn
 	}
 
+	// 開発時はターミナル（標準出力）、リリースは実行位置の prokishi-server.log へ。
+	// サーバは USI を標準入出力でやり取りしないので、標準出力へ出してよい（クライアントとは違う）。
 	if dev {
-		prokishi.SetLog(lv, os.Stdout)
-	} else if fp := prokishi.SetLogFile(lv, "prokishi-server", dev); fp != nil {
+		slog.SetDefault(slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: lv})))
+	} else if logger, fp, err := prokishi.NewFileLogger(lv, "prokishi-server", dev); err != nil {
+		slog.Error("ログファイルを作れません", "err", err)
+	} else {
+		slog.SetDefault(logger)
 		consoleLog = false
-		defer fp.Close()
+		logFile = fp
 	}
 
 	reg := registry.New()

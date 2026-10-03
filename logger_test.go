@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/ShinteLab/prokishi"
+	"github.com/ShinteLab/prokishi/internal/logs"
 )
 
 func TestGetRunDirDev(t *testing.T) {
@@ -57,43 +58,9 @@ func TestGetRunDirRelease(t *testing.T) {
 	}
 }
 
-// withRestoredDefaultLogger saves and restores the slog default logger so
-// this test's SetLog/SetLogFile calls don't leak into other tests.
-func withRestoredDefaultLogger(t *testing.T) {
-	t.Helper()
-	orig := slog.Default()
-	t.Cleanup(func() {
-		slog.SetDefault(orig)
-	})
-}
-
-func TestSetLog(t *testing.T) {
-	withRestoredDefaultLogger(t)
-
-	var buf bytes.Buffer
-	prokishi.SetLog(slog.LevelWarn, &buf)
-
-	slog.Debug("debug message")
-	slog.Info("info message")
-	if buf.Len() != 0 {
-		t.Errorf("expected no output below Warn level, got: %q", buf.String())
-	}
-
-	slog.Warn("warn message")
-	if !strings.Contains(buf.String(), "warn message") {
-		t.Errorf("expected buffer to contain warn message, got: %q", buf.String())
-	}
-
-	buf.Reset()
-	slog.Error("error message")
-	if !strings.Contains(buf.String(), "error message") {
-		t.Errorf("expected buffer to contain error message, got: %q", buf.String())
-	}
-}
-
-func TestSetLogFile(t *testing.T) {
-	withRestoredDefaultLogger(t)
-
+// NewFileLogger はファイルに書く Logger を返すだけで、slog.Default() は変えないこと。
+// （ライブラリから既定の Logger を書き換えない約束の歯止め）
+func TestNewFileLogger(t *testing.T) {
 	orig, err := os.Getwd()
 	if err != nil {
 		t.Fatalf("os.Getwd() error: %v", err)
@@ -109,13 +76,17 @@ func TestSetLogFile(t *testing.T) {
 		t.Fatalf("os.Chdir(%q) error: %v", tmp, err)
 	}
 
-	closer := prokishi.SetLogFile(slog.LevelInfo, "testlog", true)
-	if closer == nil {
-		t.Fatal("SetLogFile() returned nil closer")
+	before := slog.Default()
+	logger, closer, err := prokishi.NewFileLogger(slog.LevelInfo, "testlog", true)
+	if err != nil {
+		t.Fatalf("NewFileLogger() error: %v", err)
+	}
+	if slog.Default() != before {
+		t.Error("NewFileLogger() must not change slog.Default()")
 	}
 
-	slog.Info("hello from test")
-
+	logger.Debug("debug message")
+	logger.Info("hello from test")
 	if err := closer.Close(); err != nil {
 		t.Fatalf("closer.Close() error: %v", err)
 	}
@@ -127,5 +98,24 @@ func TestSetLogFile(t *testing.T) {
 	}
 	if !strings.Contains(string(data), "hello from test") {
 		t.Errorf("log file content = %q, want it to contain %q", string(data), "hello from test")
+	}
+	if strings.Contains(string(data), "debug message") {
+		t.Errorf("log file should not contain messages below Info: %q", string(data))
+	}
+}
+
+// SetLogger で渡した Logger に出し、nil で slog.Default() に戻ること。
+func TestSetLogger(t *testing.T) {
+	var buf bytes.Buffer
+	prokishi.SetLogger(slog.New(slog.NewTextHandler(&buf, nil)))
+	t.Cleanup(func() { prokishi.SetLogger(nil) })
+
+	logs.L().Info("from library")
+	if !strings.Contains(buf.String(), "from library") {
+		t.Errorf("SetLogger should replace the logger: %q", buf.String())
+	}
+	prokishi.SetLogger(nil)
+	if got := logs.L(); got != slog.Default() {
+		t.Error("SetLogger(nil) should fall back to slog.Default()")
 	}
 }

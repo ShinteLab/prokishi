@@ -13,27 +13,29 @@ import (
 
 func TestParseLogLevel(t *testing.T) {
 	tests := []struct {
-		name string
-		in   string
-		want slog.Level
+		name   string
+		in     string
+		want   slog.Level
+		wantOK bool
 	}{
-		{name: "dbg alias", in: "dbg", want: slog.LevelDebug},
-		{name: "debug", in: "debug", want: slog.LevelDebug},
-		{name: "info", in: "info", want: slog.LevelInfo},
-		{name: "information alias", in: "information", want: slog.LevelInfo},
-		{name: "warn", in: "warn", want: slog.LevelWarn},
-		{name: "warning alias", in: "warning", want: slog.LevelWarn},
-		{name: "err alias", in: "err", want: slog.LevelError},
-		{name: "error", in: "error", want: slog.LevelError},
-		{name: "unknown defaults to warn", in: "bogus", want: slog.LevelWarn},
-		{name: "empty defaults to warn", in: "", want: slog.LevelWarn},
-		{name: "case insensitive", in: "DEBUG", want: slog.LevelDebug},
+		{name: "dbg alias", in: "dbg", want: slog.LevelDebug, wantOK: true},
+		{name: "debug", in: "debug", want: slog.LevelDebug, wantOK: true},
+		{name: "info", in: "info", want: slog.LevelInfo, wantOK: true},
+		{name: "information alias", in: "information", want: slog.LevelInfo, wantOK: true},
+		{name: "warn", in: "warn", want: slog.LevelWarn, wantOK: true},
+		{name: "warning alias", in: "warning", want: slog.LevelWarn, wantOK: true},
+		{name: "err alias", in: "err", want: slog.LevelError, wantOK: true},
+		{name: "error", in: "error", want: slog.LevelError, wantOK: true},
+		{name: "unknown defaults to warn", in: "bogus", want: slog.LevelWarn, wantOK: false},
+		{name: "empty defaults to warn", in: "", want: slog.LevelWarn, wantOK: true},
+		{name: "case insensitive", in: "DEBUG", want: slog.LevelDebug, wantOK: true},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := parseLogLevel(tt.in); got != tt.want {
-				t.Errorf("parseLogLevel(%q) = %v, want %v", tt.in, got, tt.want)
+			got, ok := parseLogLevel(tt.in)
+			if got != tt.want || ok != tt.wantOK {
+				t.Errorf("parseLogLevel(%q) = %v, %v; want %v, %v", tt.in, got, ok, tt.want, tt.wantOK)
 			}
 		})
 	}

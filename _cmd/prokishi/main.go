@@ -5,6 +5,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -39,6 +40,10 @@ var iniFile IniFile
 func init() {
 }
 
+// logFile は run が開いたログファイル。**main がエラーを書いてから閉じる**
+// （run の中で閉じると、終了の理由がログに残らない）。
+var logFile io.Closer
+
 func main() {
 	flag.Parse()
 	err := run()
@@ -46,7 +51,15 @@ func main() {
 		msg := fmt.Sprintf("%+v", err)
 		slog.Error(msg)
 		fmt.Fprintln(os.Stderr, msg)
+		closeLog()
 		os.Exit(1)
+	}
+	closeLog()
+}
+
+func closeLog() {
+	if logFile != nil {
+		logFile.Close()
 	}
 }
 
@@ -68,9 +81,17 @@ func run() error {
 		return xerrors.Errorf("loadIniFile() error: %w", err)
 	}
 
-	lv := parseLogLevel(iniFile.Level)
-	if fp := prokishi.SetLogFile(lv, "prokishi", dev); fp != nil {
-		defer fp.Close()
+	// ログは実行位置の prokishi.log へ。⚠️ 標準出力は USI のやり取りなので、ログを向けない
+	// （ファイルを作れなければ slog の既定のまま＝標準エラー）。
+	lv, ok := parseLogLevel(iniFile.Level)
+	if logger, fp, err := prokishi.NewFileLogger(lv, "prokishi", dev); err != nil {
+		slog.Error("ログファイルを作れません", "err", err)
+	} else {
+		slog.SetDefault(logger)
+		logFile = fp
+	}
+	if !ok {
+		slog.Warn("logLevel を読めないので warn で動かします", "logLevel", iniFile.Level)
 	}
 
 	// 開発ビルドでは id name に "Development" と出す（従来どおり）
@@ -90,19 +111,21 @@ func run() error {
 	return nil
 }
 
-func parseLogLevel(lv string) slog.Level {
+// parseLogLevel は prokishi.ini の logLevel を読む。読めない値は Warn にし、ok を false で返す
+// （黙って Warn にすると、綴りを間違えたことに気づけない）。空は既定の Warn として ok。
+func parseLogLevel(lv string) (slog.Level, bool) {
 	v := strings.ToLower(lv)
 	switch v {
 	case "dbg", "debug":
-		return slog.LevelDebug
+		return slog.LevelDebug, true
 	case "info", "information":
-		return slog.LevelInfo
-	case "warn", "warning":
-		return slog.LevelWarn
+		return slog.LevelInfo, true
+	case "warn", "warning", "":
+		return slog.LevelWarn, true
 	case "err", "error":
-		return slog.LevelError
+		return slog.LevelError, true
 	default:
-		return slog.LevelWarn
+		return slog.LevelWarn, false
 	}
 }
 

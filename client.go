@@ -3,7 +3,6 @@ package prokishi
 import (
 	"context"
 	"fmt"
-	"log/slog"
 	"net"
 	"os"
 	"strconv"
@@ -11,6 +10,7 @@ import (
 	"time"
 
 	"github.com/ShinteLab/prokishi/api"
+	"github.com/ShinteLab/prokishi/internal/logs"
 	"github.com/ShinteLab/prokishi/usi"
 
 	"golang.org/x/xerrors"
@@ -132,7 +132,7 @@ func (cli *Client) receiveUSI(conf *Config) {
 	for in := range cli.recvUSI.InCh {
 		err := cli.sendServer(conf, in)
 		if err != nil {
-			slog.Error(fmt.Sprintf("%+v", err))
+			logs.L().Error(fmt.Sprintf("%+v", err))
 		}
 	}
 }
@@ -153,7 +153,7 @@ func (cli *Client) sendServer(conf *Config, cmd string) error {
 		quit = true
 	}
 
-	slog.Debug(fmt.Sprintf("USI(I):%s", cmd))
+	logs.L().Debug(fmt.Sprintf("USI(I):%s", cmd))
 	req := &api.SendRequest{
 		Code:         conf.Code,
 		ConnectionId: cli.connectionId,
@@ -163,7 +163,7 @@ func (cli *Client) sendServer(conf *Config, cmd string) error {
 	//コマンドを送信
 	_, err := cli.senderCli.Send(cli.ctx, req)
 	if err != nil {
-		slog.Error(fmt.Sprintf("%+v", err))
+		logs.L().Error(fmt.Sprintf("%+v", err))
 	}
 
 	//終了フラグを設定
@@ -183,13 +183,13 @@ func (cli *Client) receiveServer(stream api.USIReceiveService_ReceiveClient, v s
 
 		res, err := stream.Recv()
 		if err != nil {
-			slog.Info("server connection closed", "err", err)
+			logs.L().Info("server connection closed", "err", err)
 			break
 		}
 
 		cmd := formatEngineLine(res.Cmd, v)
 
-		slog.Debug(fmt.Sprintf("USI(O): %s\n", cmd))
+		logs.L().Debug(fmt.Sprintf("USI(O): %s", cmd))
 		//UIエンジンに送信
 		cli.recvUSI.Send(cmd)
 	}
