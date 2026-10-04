@@ -2,12 +2,6 @@ import { describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import { TitleBar } from '../TitleBar'
 
-vi.mock('../../bindings/wails', () => ({
-  WindowService: {
-    ShutdownAndQuit: vi.fn(),
-  },
-}))
-
 describe('TitleBar', () => {
   const defaultProps = {
     title: 'prokishi-server',
