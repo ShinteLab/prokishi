@@ -29,6 +29,10 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v5
 
+      - name: Load variables
+        shell: bash
+        run: cat .github/variables >> $GITHUB_ENV
+
       - name: Install Linux dependencies
         if: runner.os == 'Linux'
         run: |
@@ -42,12 +46,12 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v6
         with:
-          go-version: '1.25'
+          go-version: ${{ env.GO_VERSION }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v5
         with:
-          node-version: '22'
+          node-version: ${{ env.NODE_VERSION }}
 
       - name: Get environment info
         shell: bash
@@ -65,7 +69,8 @@ jobs:
           npm -v
 
       - name: Install Wails CLI
-        run: go install github.com/wailsapp/wails/v3/cmd/wails3@latest
+        # .github/variables でピン留めしたバージョンを使う（@latest は使わない）
+        run: go install github.com/wailsapp/wails/v3/cmd/wails3@${{ env.WAILS_VERSION }}
 
       - name: Wails doctor
         shell: bash
@@ -128,10 +133,14 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v5
 
+      - name: Load variables
+        shell: bash
+        run: cat .github/variables >> $GITHUB_ENV
+
       - name: Setup Go
         uses: actions/setup-go@v6
         with:
-          go-version: '1.25'
+          go-version: ${{ env.GO_VERSION }}
 
       - name: Get environment info
         shell: bash

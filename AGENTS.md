@@ -186,7 +186,8 @@ logLevel = "warn"
 
 ### Wails3 の注意点
 
-- Wails3 は v3.0.0-beta.3（`_cmd/prokishi-server/go.mod`）。手元の `wails3` CLI とは版が
+- Wails3 は v3.0.0-beta.3（`_cmd/prokishi-server/go.mod`）。CI の CLI・Go・Node の版は `.github/variables` で揃える
+  （go.mod を上げたらこちらも上げる。`prokishi-release` 参照）。手元の `wails3` CLI とは版が
   ずれていることがあるので、bindings などの生成物を作り直すときは注意する（ルートの `AGENTS.md` 参照）。
 - Taskfile.yml は名前空間形式（includes: common, windows, darwin, linux）。
 - 終了確認はフロントの MUI Dialog とイベントの emit（`request-close`）で行う。

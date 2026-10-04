@@ -26,6 +26,10 @@ jobs:
           fetch-depth: 0
           token: ${{ secrets.MY_GITHUB_TOKEN }}
 
+      - name: Load variables
+        shell: bash
+        run: cat .github/variables >> $GITHUB_ENV
+
       - name: Install Linux dependencies
         run: |
           sudo apt-get update
@@ -38,10 +42,11 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v6
         with:
-          go-version: '1.25'
+          go-version: ${{ env.GO_VERSION }}
 
       - name: Install Wails3
-        run: go install github.com/wailsapp/wails/v3/cmd/wails3@latest
+        # .github/variables でピン留めしたバージョンを使う（@latest は使わない）
+        run: go install github.com/wailsapp/wails/v3/cmd/wails3@${{ env.WAILS_VERSION }}
 
       - name: Determine and Bump Version
         id: versioning
