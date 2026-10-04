@@ -62,9 +62,12 @@ feature ブランチ ──PR──▶ main にマージ
 - `GITHUB_TOKEN` で push したタグは後続のワークフローを起動しないため、versionup は
   `MY_GITHUB_TOKEN`（PAT）を使う。**PAT の期限が切れると versionup が checkout / push で落ちる**
 - `-` や `+` を含むタグ（`v0.2.0-rc1` など）では release.yml はビルドしない
-- CI の `wails3` は `@latest` を入れる。`go.mod` の Wails（beta.3）より新しい CLI で
-  `update build-assets` やビルドをするので、ビルドの失敗や build/ 配下の想定外の差分はまずここを疑う
-- CI の `setup-go` は `1.25`、`go.mod` は `go 1.26.1`。ツールチェーンの自動取得で動いている
+- CI で使う Go・Wails CLI・Node のバージョンは **`.github/variables`** にまとめてある
+  （ワークフローが `cat .github/variables >> $GITHUB_ENV` で読み、`env.GO_VERSION` などで参照する）。
+  - ⚠️ **`go.mod` の `go` 行や Wails のバージョンを上げたら、`.github/variables` も合わせて上げる。**
+    `WAILS_VERSION` は `_cmd/prokishi-server/go.mod` の `github.com/wailsapp/wails/v3` と同じ値にする
+  - ⚠️ **`KEY=VALUE` 以外の行（`#` のコメントなど）を書かない。** `$GITHUB_ENV` のパーサが `Invalid format` で落ちる
+  - ⚠️ 読み込むステップの `shell: bash` を外さない（Windows のランナーの既定は pwsh で、`$GITHUB_ENV` に書き込まれない）
 
 ## ローカルで先に確かめる
 
