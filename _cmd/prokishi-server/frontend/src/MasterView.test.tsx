@@ -7,11 +7,10 @@ import { AdminService, ServerService } from '../bindings/prokishi-server'
 
 // MasterView subscribes to the 'server-state' event to keep the running/
 // stopped chip in sync with the Go side.
-vi.mock('@wailsio/runtime', () => ({
-  Events: { On: vi.fn(() => () => {}) },
-}))
+// @wailsio/runtime は setupTests.ts の automock（__mocks__/@wailsio/runtime.ts）に任せる。
+// ここでファクトリを書くと bindings が使う Create エクスポートが欠けて読み込みに失敗する。
 
-vi.mock('../bindings/wails', () => ({
+vi.mock('../bindings/prokishi-server', () => ({
   AdminService: {
     ListEngines: vi.fn(),
     ListCodes: vi.fn(),

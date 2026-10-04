@@ -9,16 +9,10 @@ import { WindowService } from '../bindings/prokishi-server'
 // side in response to WindowClosing) and shows a confirmation dialog.
 // MonitorView (rendered as the default view) also runs on mount, so its
 // bindings need mocking too or the component tree throws during render.
-vi.mock('@wailsio/runtime', () => ({
-  Events: { On: vi.fn(() => () => {}) },
-  Window: {
-    IsMaximised: vi.fn().mockResolvedValue(false),
-    Minimise: vi.fn(),
-    ToggleMaximise: vi.fn().mockResolvedValue(undefined),
-  },
-}))
+// @wailsio/runtime は setupTests.ts の automock（__mocks__/@wailsio/runtime.ts）に任せる。
+// ここでファクトリを書くと bindings が使う Create エクスポートが欠けて読み込みに失敗する。
 
-vi.mock('../bindings/wails', () => ({
+vi.mock('../bindings/prokishi-server', () => ({
   WindowService: { ShutdownAndQuit: vi.fn() },
   DebugService: {
     ListConnections: vi.fn().mockResolvedValue([]),
