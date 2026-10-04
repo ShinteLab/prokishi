@@ -25,7 +25,7 @@ Windows の ShogiGUI でも手動で動作確認する。
 ## モジュール構成
 
 このディレクトリは単独の Go モジュール `github.com/ShinteLab/prokishi`。`core` への Go の依存は無い
-（フロントだけが `@shinte/web` を相対パスで使う）。`_cmd/prokishi-server/` の Wails3 アプリは
+（フロントだけが `@shinte/web` を使い、その版は `_cmd/prokishi-server/go.mod` の `github.com/ShinteLab/core` のタグで決まる）。`_cmd/prokishi-server/` の Wails3 アプリは
 入れ子の別モジュール（`prokishi-server`）で、`replace github.com/ShinteLab/prokishi => ../../` で
 このモジュールを取り込んでいる。タグはまだ打っていないので、この replace は外さないこと。
 `go` コマンドは基本このディレクトリで実行する（サーバアプリ本体は `_cmd/prokishi-server/` で実行）。
@@ -153,9 +153,17 @@ Wails3 + React + MUI で作った GUI。タイトルバーのメニューで画�
 
 ### 共有フロントパッケージ `@shinte/web`
 
-`core/web` の Web Component `<shogi-board>` と SFEN/USI ロジックを利用する。npm install せずに
-参照するため、`vite.config.ts` の `resolve.alias` と `tsconfig.json` の `paths` で
-`@shinte/web` → `../../../../core/web` に解決している（`server.fs.allow` にリポジトリルートを追加）。
+`core/web` の Web Component `<shogi-board>` と SFEN/USI ロジックを利用する。npm には出していないので、
+**`core` のタグを Go モジュールとして引き**、中の `web` をフロントにコピーして使う。
+
+- 版は `_cmd/prokishi-server/go.mod` の `github.com/ShinteLab/core`。`tools.go`（ビルドタグ `tools`。
+  アプリには入らない）が import して、`go mod tidy` で消えないようにしている
+- `frontend/scripts/shinte-web.mjs` が `go list -m` でモジュールの場所を聞き、`frontend/shinte-web/`
+  （git 管理外）にコピーする。npm の `predev` / `prebuild` / `prebuild:dev` / `pretest` で自動で走る
+- `vite.config.ts` の `resolve.alias` と `tsconfig.json` の `paths` は `frontend/shinte-web/` を見る
+- core を上げる: `_cmd/prokishi-server` で `go get github.com/ShinteLab/core@vX.Y.Z`
+- 手元の core を直しながら試す: `go.mod` に一時的に `replace github.com/ShinteLab/core => ../../../core`
+  を足す（コピー元がその場所になる）。⚠️ **replace を付けたままコミットしないこと**（CI に `../core` は無い）
 JSX で使うための型は `src/shogi-board.d.ts`、登録は `App.tsx` の副作用 import（`import '@shinte/web'`）。
 
 ### データベースのスキーマ

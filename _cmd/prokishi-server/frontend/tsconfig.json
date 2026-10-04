@@ -10,7 +10,7 @@
     "moduleResolution": "bundler",
     "baseUrl": ".",
     "paths": {
-      "@shinte/web": ["../../../../core/web/index.d.ts"]
+      "@shinte/web": ["./shinte-web/index.d.ts"]
     },
     "allowImportingTsExtensions": true,
     "resolveJsonModule": true,
