@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import App from '../App'
 
-vi.mock('../../bindings/wails', () => ({
+vi.mock('../../bindings/prokishi-server', () => ({
   WindowService: {
     ShutdownAndQuit: vi.fn(),
   },

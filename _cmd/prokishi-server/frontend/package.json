@@ -4,10 +4,15 @@
   "version": "0.2.0",
   "type": "module",
   "scripts": {
+    "shinte-web": "node scripts/shinte-web.mjs",
+    "predev": "npm run shinte-web",
     "dev": "vite",
+    "prebuild:dev": "npm run shinte-web",
     "build:dev": "tsc && vite build --minify false --mode development",
+    "prebuild": "npm run shinte-web",
     "build": "tsc && vite build --mode production",
     "preview": "vite preview",
+    "pretest": "npm run shinte-web",
     "test": "vitest run",
     "test:watch": "vitest"
   },
