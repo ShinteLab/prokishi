@@ -6,8 +6,8 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
-	"time"
 
+	"github.com/ShinteLab/prokishi/internal/logs"
 	"golang.org/x/xerrors"
 )
 
@@ -29,38 +29,32 @@ func GetRunDir(d bool) (string, error) {
 	return dir, nil
 }
 
-func createLvLogger(lv slog.Level, w io.Writer) *slog.Logger {
-	var opts slog.HandlerOptions
-	opts.Level = lv
-	h := slog.NewTextHandler(w, &opts)
-	return slog.New(h)
+// ログ。prokishi はライブラリなので、ログの設定（レベル・出力先）は持たず、
+// slog.SetDefault も呼ばない。使う側（アプリ）が決める。
+//
+// ⚠️ クライアント（Run）は USI のやり取りに標準入出力を使う。**標準出力へ書く Logger を
+// 渡さないこと**（GUI が USI の応答として読んでしまう）。
+
+// SetLogger は prokishi（server・usi を含む）が使う Logger を差し替える。
+// nil を渡すと slog.Default() に戻る（何もしなければ slog.Default()）。
+func SetLogger(l *slog.Logger) {
+	logs.Set(l)
 }
 
-func SetLog(lv slog.Level, w io.Writer) {
-	slog.SetDefault(createLvLogger(lv, w))
-}
-
-func SetLogFile(lv slog.Level, name string, d bool) io.Closer {
-
-	dir, err := GetRunDir(d)
+// NewFileLogger は実行位置（GetRunDir）に "<name>.log" を作り、lv 以上を書く Logger を返す。
+// ファイルは起動のたびに作り直す（削除の運用をしなくて済むよう、同じ名前にしている）。
+//
+// ⚠️ **slog.SetDefault はしない。** 既定にするか SetLogger に渡すかはアプリが決める。
+// 返す io.Closer で終了時にファイルを閉じる。
+func NewFileLogger(lv slog.Level, name string, dev bool) (*slog.Logger, io.Closer, error) {
+	dir, err := GetRunDir(dev)
 	if err != nil {
-		slog.Error(err.Error())
-		return nil
+		return nil, nil, xerrors.Errorf("GetRunDir() error: %w", err)
 	}
-
-	//削除したりの運用面倒そうだから同じ名前にする
-	fn := filepath.Join(dir, fmt.Sprintf("%s.log", name))
-	fp, err := os.Create(fn)
+	fp, err := os.Create(filepath.Join(dir, fmt.Sprintf("%s.log", name)))
 	if err != nil {
-		slog.Error(err.Error())
-		return nil
+		return nil, nil, xerrors.Errorf("os.Create() error: %w", err)
 	}
-
-	slog.SetDefault(createLvLogger(lv, fp))
-	return fp
-}
-
-func timestamp() string {
-	now := time.Now()
-	return now.Format("20060102150405")
+	h := slog.NewTextHandler(fp, &slog.HandlerOptions{Level: lv})
+	return slog.New(h), fp, nil
 }

@@ -3,19 +3,23 @@ package prokishi
 import (
 	"context"
 	"fmt"
-	"log/slog"
 	"net"
 	"os"
-	"github.com/ShinteLab/prokishi/api"
-	"github.com/ShinteLab/prokishi/usi"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/ShinteLab/prokishi/api"
+	"github.com/ShinteLab/prokishi/internal/logs"
+	"github.com/ShinteLab/prokishi/usi"
 
 	"golang.org/x/xerrors"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
+
+// サーバへの接続を待つ時間
+const connectTimeout = 3 * time.Second
 
 type Client struct {
 	ctx       context.Context
@@ -55,15 +59,14 @@ func NewClient(ctx context.Context, conf *Config, quit chan os.Signal) (*Client,
 // サーバとの接続
 func (cli *Client) dial(host string, port int) error {
 
+	// NewClient はここでは接続しない。実際の接続は connect() の最初の RPC で行う
 	addr := net.JoinHostPort(host, strconv.Itoa(port))
-	conn, err := grpc.Dial(
+	conn, err := grpc.NewClient(
 		addr,
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
-		grpc.WithTimeout(3*time.Second),
-		grpc.WithBlock(),
 	)
 	if err != nil {
-		return xerrors.Errorf("grpc.Dial() error: %w", err)
+		return xerrors.Errorf("grpc.NewClient() error: %w", err)
 	}
 	cli.conn = conn
 
@@ -80,7 +83,10 @@ func (cli *Client) connect(c *Config) error {
 	}
 
 	//サーバからコネクションIDを取得
-	res, err := connCli.Connection(cli.ctx, req)
+	//サーバにつながるまで connectTimeout だけ待つ（つながらなければ context deadline exceeded）
+	ctx, cancel := context.WithTimeout(cli.ctx, connectTimeout)
+	defer cancel()
+	res, err := connCli.Connection(ctx, req, grpc.WaitForReady(true))
 	if err != nil {
 		return xerrors.Errorf("api.Connection() error: %w", err)
 	}
@@ -126,7 +132,7 @@ func (cli *Client) receiveUSI(conf *Config) {
 	for in := range cli.recvUSI.InCh {
 		err := cli.sendServer(conf, in)
 		if err != nil {
-			slog.Error(fmt.Sprintf("%+v", err))
+			logs.L().Error(fmt.Sprintf("%+v", err))
 		}
 	}
 }
@@ -147,7 +153,7 @@ func (cli *Client) sendServer(conf *Config, cmd string) error {
 		quit = true
 	}
 
-	slog.Debug(fmt.Sprintf("USI(I):%s", cmd))
+	logs.L().Debug(fmt.Sprintf("USI(I):%s", cmd))
 	req := &api.SendRequest{
 		Code:         conf.Code,
 		ConnectionId: cli.connectionId,
@@ -157,7 +163,7 @@ func (cli *Client) sendServer(conf *Config, cmd string) error {
 	//コマンドを送信
 	_, err := cli.senderCli.Send(cli.ctx, req)
 	if err != nil {
-		slog.Error(fmt.Sprintf("%+v", err))
+		logs.L().Error(fmt.Sprintf("%+v", err))
 	}
 
 	//終了フラグを設定
@@ -177,13 +183,13 @@ func (cli *Client) receiveServer(stream api.USIReceiveService_ReceiveClient, v s
 
 		res, err := stream.Recv()
 		if err != nil {
-			slog.Info("server connection closed", "err", err)
+			logs.L().Info("server connection closed", "err", err)
 			break
 		}
 
 		cmd := formatEngineLine(res.Cmd, v)
 
-		slog.Debug(fmt.Sprintf("USI(O): %s\n", cmd))
+		logs.L().Debug(fmt.Sprintf("USI(O): %s", cmd))
 		//UIエンジンに送信
 		cli.recvUSI.Send(cmd)
 	}

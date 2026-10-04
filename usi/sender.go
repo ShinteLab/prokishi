@@ -3,10 +3,10 @@ package usi
 import (
 	"bufio"
 	"io"
-	"log"
 	"os/exec"
 	"sync"
 
+	"github.com/ShinteLab/prokishi/internal/logs"
 	"golang.org/x/xerrors"
 )
 
@@ -54,7 +54,7 @@ func NewSender(e string) (*Sender, error) {
 		//プロセス終了を監視
 		err := cmd.Wait()
 		if err != nil {
-			log.Println(err)
+			logs.L().Info("エンジンのプロセスが終了しました", "err", err)
 		}
 		s.Terminate()
 	}()

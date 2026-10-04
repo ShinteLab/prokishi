@@ -5,14 +5,16 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"log"
 	"log/slog"
 	"os"
 	"os/signal"
+	"strings"
+
 	"github.com/ShinteLab/prokishi"
 	"github.com/ShinteLab/prokishi/db"
 	"github.com/ShinteLab/prokishi/registry"
-	"strings"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
 	"github.com/wailsapp/wails/v3/pkg/events"
@@ -47,6 +49,10 @@ func init() {
 
 var consoleLog = true
 
+// logFile は run が開いたログファイル。**main がエラーを書いてから閉じる**
+// （run の中で閉じると、終了の理由がログに残らない）。
+var logFile io.Closer
+
 func main() {
 	flag.Parse()
 	err := run()
@@ -56,6 +62,9 @@ func main() {
 			slog.Error(msg)
 		}
 		fmt.Fprintln(os.Stderr, msg)
+	}
+	if logFile != nil {
+		logFile.Close()
 	}
 }
 
@@ -88,11 +97,16 @@ func run() error {
 		lv = slog.LevelWarn
 	}
 
+	// 開発時はターミナル（標準出力）、リリースは実行位置の prokishi-server.log へ。
+	// サーバは USI を標準入出力でやり取りしないので、標準出力へ出してよい（クライアントとは違う）。
 	if dev {
-		defer prokishi.SetLog(lv, os.Stdout)
+		slog.SetDefault(slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: lv})))
+	} else if logger, fp, err := prokishi.NewFileLogger(lv, "prokishi-server", dev); err != nil {
+		slog.Error("ログファイルを作れません", "err", err)
 	} else {
+		slog.SetDefault(logger)
 		consoleLog = false
-		defer prokishi.SetLogFile(lv, "prokishi-server", dev).Close()
+		logFile = fp
 	}
 
 	reg := registry.New()

@@ -1,6 +1,9 @@
 package main
 
 import (
+	"net"
+	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -91,6 +94,41 @@ func TestServerService_GetLocalIPs_Smoke(t *testing.T) {
 
 	// Must not panic; environment-dependent contents aren't asserted.
 	_ = s.GetLocalIPs()
+}
+
+// 他プロセスが同じポートを掴んでいるとき、Start() は非同期に流さず
+// その場で bind エラーを返し、稼働中扱いにしないこと。
+func TestServerService_Start_PortInUseReturnsError(t *testing.T) {
+	chdirTemp(t)
+
+	// 先客を作る。ephemeral port を取ってから同じポートを狙う。
+	occupied, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("net.Listen() error: %v", err)
+	}
+	defer occupied.Close()
+	port := occupied.Addr().(*net.TCPAddr).Port
+
+	s := &ServerService{registry: registry.New(), dev: true}
+	if err := s.SaveConfig(ServerConfig{Host: "127.0.0.1", Port: port, AutoStart: false}); err != nil {
+		t.Fatalf("SaveConfig() error: %v", err)
+	}
+
+	err = s.Start()
+	if err == nil {
+		t.Cleanup(s.Stop)
+		t.Fatal("Start() on an occupied port: got nil error, want bind error")
+	}
+	if !strings.Contains(err.Error(), strconv.Itoa(port)) {
+		t.Errorf("Start() error = %q, want it to mention port %d", err, port)
+	}
+
+	if s.IsRunning() {
+		t.Error("IsRunning() = true after a failed Start(), want false")
+	}
+	if st := s.GetState(); st.Running || st.Err == "" {
+		t.Errorf("GetState() = %+v, want Running=false with a non-empty Err", st)
+	}
 }
 
 func TestServerService_StartStopLifecycle(t *testing.T) {

@@ -8,6 +8,19 @@ prokishiエンジンはprokishiからprokishi-serverにUSIプロトコルを転�
 
 USIプロトコルとサーバをプロキシする仕組みが「prokishi」です。
 
+```
+[将棋ソフト（ShogiHome / ShogiGUI など）]
+    ↕ 標準入出力（USI）
+[prokishi]            将棋ソフトにはエンジンとして登録する（コマンドラインのプログラム）
+    ↕ gRPC（TCP）
+[prokishi-server]     エンジンのある端末で動かす（管理画面付きのデスクトップアプリ）
+    ↕ 標準入出力（USI）
+[将棋エンジン]
+```
+
+prokishi-server の管理画面では、エンジンと認証コードの登録、接続中のエンジンとのやり取りの監視、
+局面の盤面表示、サーバの起動・停止とクライアント設定ファイルの書き出し、CPU 使用率の監視ができます。
+
 ## インストール
 
 INSTALL.md をご覧ください
@@ -18,7 +31,7 @@ INSTALL.md をご覧ください
 
 ## 利用例２：評価値サーバを構築する
 
-UIがWindowsでエンジンがLinux,Macしか対応してない(あるのか？)っていう場合でも、prokishiを通して実行することが可能です。(prokishi-serverをそっちでビルドする必要がありますが)
+UIがWindowsでエンジンがLinux,Macしか対応してない(あるのか？)っていう場合でも、prokishiを通して実行することが可能です。(配布している prokishi-server は Windows 版のみなので、そっちでビルドする必要がありますが。prokishi は Windows / macOS / Linux 版を配布しています)
 また逆もしかりです。
 
 prokishi-serverを複数構築して、色々なエンジンをそれぞれの端末で動作させることができます。・・・自分で書いててそこまでしてやる人が世界に何人いるのかって感じですが、技術的には可能になります。
@@ -38,20 +51,27 @@ UI部分が子プロセスで実行しているのに対して、prokishiでは�
 
 # テストについて
 
-将棋ソフトとの連携テストはShogiGUIを利用して行っています。
+将棋ソフトとの連携テストは ShogiHome（macOS）と ShogiGUI（Windows）を利用して行っています。
 
 # USIプロトコルについて
 
 id name,id author,quit以外のコマンドはUSIプロトコルを純粋に転送します。
 
-名称とバージョンについては
+名称と作者については、エンジンが返した値の後ろに prokishi の情報を付け足します。
 
-- {engine_name} (prokishi v0.1.0)
-- {engine_author} (secondarykey)
+- `id name {engine_name}(prokishi 0.1.0)`
+- `id author {engine_author}(secondarykey)`
 
-というベースのエンジンにこのエンジンの編集が入ります。
+開発用にビルドした prokishi（`-tags production` なし）では `prokishi Development` になります。
 
-quit では終了処理が入ります。またエンジン側のプロセスが終了した場合、可能であればサーバ側にquitを送りますが、現状ゴミになる可能性があります。(サーバ側に動作エンジンをkillする方法などを提供予定)
+quit では終了処理が入ります。
+
+- 将棋ソフトが quit を送った場合、サーバ側のエンジンにも quit を送り、prokishi も終了します
+- prokishi が中断（Ctrl+C など）された場合も、サーバ側に quit を送ってから終了します
+- サーバ側のエンジンが終了した場合、prokishi も終了します
+
+将棋ソフトが quit を送らずに prokishi を強制終了した場合や、通信が途中で切れた場合は、サーバ側にエンジンのプロセスが残る可能性があります。
+残っているエンジンは prokishi-server の「システム監視」で PID を確認できます。現状、管理画面からエンジンを止める機能はありません。
 
 # 動作保障
 
@@ -60,31 +80,65 @@ quit では終了処理が入ります。またエンジン側のプロセスが
 
 # ログについて
 
-prokishi,prokishi-serverは実行位置にログファイルを出力します。
+prokishi は実行ファイルと同じ場所に `prokishi.log` を出力します。
+設定ファイルの logLevel を "debug" にすると USI のやり取りも全て記録されます。
 
-prokishi は設定ファイルのlogLevelを"debug"に設定し、prokishi-serverは実行時に-v にするとUSIのやり取りも全て記録されます。
+prokishi-server は実行ファイルと同じ場所に `prokishi-server.log` を出力します。
+実行時に `-v` を付けると USI のやり取りも全て記録されます。
 
 # development
 
-サーバとの連携はgrpcを利用しています。
-
-grpc code generate:
-
-```
-protoc --go_out=. --go-grpc_out=. api.proto
-```
+サーバとの連携は gRPC を利用しています。
+開発者向けの詳しい情報（パッケージ構成・API を変えるときやリリースの手順）は
+`AGENTS.md` と `_docs/skills/` にあります。
 
 ## build
 
-開発時に都合がいいようにビルドした場合とiniファイルの位置を切り替えています。
-build 時にバージョンを指定するはずなので、バージョンによってビルド実行しているものかを判定して動作させます。
+開発時に都合がいいように、開発用のビルドとリリース用のビルドで設定ファイル・DB・ログの位置を切り替えています。
 
-その為、新たにビルドしてご利用する場合はバージョンの指定を行ってください。
+- 開発用: 作業ディレクトリ（カレントディレクトリ）
+- リリース用: 実行ファイルのあるディレクトリ
+
+prokishi はビルドタグ `production` を付けたかどうかで判定します。
+その為、新たにビルドしてご利用する場合は `-tags production` を付けてください。
 
 ```
-go build -ldflags "-X main.version=0.0.0" -o prokishi.exe main.go
+go build -tags production -o prokishi.exe ./_cmd/prokishi/
 ```
 
 という風にビルドしてください。
-同じ名称でビルドして利用される場合はできればバージョンはそれとわかるようにしてください。
+バージョンは `_cmd/prokishi/version` の値が埋め込まれ、`prokishi version` で確認できます。
+（`_cmd/prokishi-server/version` がマスタで、`go run _cmd/version.go` で揃えます）
+
+prokishi-server は Wails3 のデスクトップアプリです。
+`wails3 build` がリリース用（`-tags production`）、`wails3 dev` が開発用になります。
+
+```
+cd _cmd/prokishi-server/frontend
+npm install
+cd ..
+wails3 build
+```
+
+## test
+
+```
+go test ./...
+go test ./_cmd/prokishi/
+go test -tags integration ./usi/...
+
+cd _cmd/prokishi-server
+go test ./...
+cd frontend
+npm test
+```
+
+## gRPC のコード生成
+
+`api/api.proto` を変更した場合は `api` ディレクトリの中で生成します。
+
+```
+cd api
+protoc --go_out=. --go-grpc_out=. api.proto
+```
 

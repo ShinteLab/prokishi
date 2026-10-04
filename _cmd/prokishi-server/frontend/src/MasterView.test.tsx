@@ -60,7 +60,7 @@ describe('MasterView', () => {
     vi.mocked(AdminService.SelectEnginePath).mockReset().mockResolvedValue('')
     vi.mocked(AdminService.SaveClientConfig).mockReset().mockResolvedValue(undefined)
 
-    vi.mocked(ServerService.GetState).mockReset().mockResolvedValue({ running: false, url: '' })
+    vi.mocked(ServerService.GetState).mockReset().mockResolvedValue({ running: false, url: '', err: '' })
     vi.mocked(ServerService.GetConfig).mockReset().mockResolvedValue({ host: '', port: 8080, autoStart: true, useAuth: false })
     vi.mocked(ServerService.GetLocalIPs).mockReset().mockResolvedValue(['192.168.1.10'])
     vi.mocked(ServerService.SaveConfig).mockReset().mockResolvedValue(undefined)

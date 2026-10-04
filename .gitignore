@@ -7,7 +7,6 @@
 _cmd/prokishi-server/db
 _cmd/prokishi/prokishi.ini
 _cmd/build
-_cmd/prokishi-server/build
 _work
 node_modules
 _cmd/prokishi-server/frontend/dist

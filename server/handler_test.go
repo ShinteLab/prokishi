@@ -94,16 +94,13 @@ func newTestServer(t *testing.T, useAuth bool) *testServer {
 		return lis.DialContext(ctx)
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	conn, err := grpc.DialContext(ctx, "bufnet",
+	// NewClient の既定のリゾルバは dns なので、bufconn には passthrough を明示する
+	conn, err := grpc.NewClient("passthrough:///bufnet",
 		grpc.WithContextDialer(dialer),
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
-		grpc.WithBlock(),
 	)
 	if err != nil {
-		t.Fatalf("grpc.DialContext() error: %v", err)
+		t.Fatalf("grpc.NewClient() error: %v", err)
 	}
 	t.Cleanup(func() { _ = conn.Close() })
 

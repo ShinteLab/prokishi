@@ -1,6 +1,27 @@
 import { describe, it, expect } from 'vitest'
-import { toMs, fmt, sendHL, recvHL, computeSendRange } from './MonitorView'
+import { toMs, fmt, sendHL, recvHL, computeSendRange, limitLogs, MAX_LINES } from './MonitorView'
 import type { SendRange } from './MonitorView'
+
+describe('limitLogs', () => {
+  it('returns the array as-is when the limit is off', () => {
+    const logs = Array.from({ length: MAX_LINES + 500 }, (_, i) => i)
+    expect(limitLogs(logs, false)).toBe(logs)
+  })
+  it('returns the array as-is when the limit is on but the length is within MAX_LINES', () => {
+    const logs = Array.from({ length: MAX_LINES }, (_, i) => i)
+    expect(limitLogs(logs, true)).toBe(logs)
+  })
+  it('keeps only the newest MAX_LINES entries when over the limit', () => {
+    const logs = Array.from({ length: MAX_LINES + 3 }, (_, i) => i)
+    const out = limitLogs(logs, true)
+    expect(out).toHaveLength(MAX_LINES)
+    expect(out[0]).toBe(3)
+    expect(out[out.length - 1]).toBe(MAX_LINES + 2)
+  })
+  it('honors an explicit max', () => {
+    expect(limitLogs([1, 2, 3, 4, 5], true, 2)).toEqual([4, 5])
+  })
+})
 
 describe('toMs', () => {
   it('parses a valid ISO timestamp to epoch ms', () => {

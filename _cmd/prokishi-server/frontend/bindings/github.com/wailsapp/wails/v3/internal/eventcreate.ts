@@ -8,10 +8,10 @@ import { Create as $Create } from "@wailsio/runtime";
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
-import * as main$0 from "../../../../../prokishi-server/models.js";
+import * as registry$0 from "../../../../ShinteLab/prokishi/registry/models.js";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
-import * as registry$0 from "../../../../../shinte/prokishi/registry/models.js";
+import * as main$0 from "../../../../../prokishi-server/models.js";
 
 function configure() {
     Object.freeze(Object.assign($Create.Events, {

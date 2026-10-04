@@ -1,15 +1,14 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { act, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { MonitorView } from './MonitorView'
+import { MonitorView, MAX_LINES } from './MonitorView'
 import { Events } from '@wailsio/runtime'
 import { DebugService, ServerService } from '../bindings/prokishi-server'
 
-vi.mock('@wailsio/runtime', () => ({
-  Events: { On: vi.fn(() => () => {}) },
-}))
+// @wailsio/runtime は setupTests.ts の automock（__mocks__/@wailsio/runtime.ts）に任せる。
+// ここでファクトリを書くと bindings が使う Create エクスポートが欠けて読み込みに失敗する。
 
-vi.mock('../bindings/wails', () => ({
+vi.mock('../bindings/prokishi-server', () => ({
   DebugService: {
     ListConnections: vi.fn(),
     GetLogs: vi.fn(),
@@ -41,7 +40,7 @@ describe('MonitorView', () => {
     vi.mocked(Events.On).mockClear()
     vi.mocked(DebugService.ListConnections).mockReset().mockResolvedValue([])
     vi.mocked(DebugService.GetLogs).mockReset().mockResolvedValue([])
-    vi.mocked(ServerService.GetState).mockReset().mockResolvedValue({ running: false, url: '' })
+    vi.mocked(ServerService.GetState).mockReset().mockResolvedValue({ running: false, url: '', err: '' })
   })
 
   it('renders the connection list from ListConnections', async () => {
@@ -98,6 +97,32 @@ describe('MonitorView', () => {
     })
 
     expect(await screen.findByText('go infinite')).toBeInTheDocument()
+  })
+
+  it('shows only the newest MAX_LINES lines while the limit checkbox is checked, and all of them once it is unchecked', async () => {
+    const total = MAX_LINES + 5
+    vi.mocked(DebugService.ListConnections).mockResolvedValue([conn1])
+    vi.mocked(DebugService.GetLogs).mockResolvedValue(
+      Array.from({ length: total }, (_, i) => ({
+        timestamp: '2024-01-01T00:00:01.000Z', dir: 0, message: `cmd-${i}`,
+      })),
+    )
+
+    render(<MonitorView />)
+
+    const user = userEvent.setup()
+    await user.click(await screen.findByText('MyEngine'))
+
+    // 上限オン（既定）: 先頭 5 行は落ち、最新行だけが残る
+    expect(await screen.findByText(`cmd-${total - 1}`)).toBeInTheDocument()
+    expect(screen.queryByText('cmd-0')).not.toBeInTheDocument()
+    expect(screen.getByText(`cmd-${total - MAX_LINES}`)).toBeInTheDocument()
+    expect(screen.getByText(`${MAX_LINES}行 (全${total})`)).toBeInTheDocument()
+
+    // チェックを外すと全ログ
+    await user.click(screen.getByRole('checkbox'))
+    expect(await screen.findByText('cmd-0')).toBeInTheDocument()
+    expect(screen.getByText(`cmd-${total - 1}`)).toBeInTheDocument()
   })
 
   it('marks a connection as disconnected on conn-removed without removing it from the list', async () => {

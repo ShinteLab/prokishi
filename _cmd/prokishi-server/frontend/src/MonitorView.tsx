@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
-import { Box, Chip, Divider, IconButton, List, ListItemButton, ListItemText, Tooltip, Typography } from '@mui/material'
+import { Box, Checkbox, Chip, Divider, FormControlLabel, IconButton, List, ListItemButton, ListItemText, Tooltip, Typography } from '@mui/material'
 import RefreshIcon from '@mui/icons-material/Refresh'
 import ViewColumnIcon from '@mui/icons-material/ViewColumn'
 import ViewStreamIcon from '@mui/icons-material/ViewStream'
@@ -11,6 +11,15 @@ type ConnectionInfo = { id: string; engineId: string; engineName: string; engine
 type LogEntryItem  = { timestamp: any; dir: number; message: string }
 export type SendRange     = { from: number; to: number } | null
 export type HighlightWin  = { from: number; to: number } | null
+
+// 表示行数の上限（チェックオン時）。放置して溜まったログで描画が重くなるのを防ぐ
+export const MAX_LINES = 1000
+
+// 上限オン時は末尾（最新）MAX_LINES 行だけを返す。オフなら全件そのまま
+export function limitLogs<T>(logs: T[], limited: boolean, max: number = MAX_LINES): T[] {
+  if (!limited || logs.length <= max) return logs
+  return logs.slice(logs.length - max)
+}
 
 const SEND_COLOR = 'success.main'
 const RECV_COLOR = 'info.main'
@@ -143,6 +152,7 @@ export function MonitorView() {
   const [logs, setLogs] = useState<LogEntryItem[]>([])
   const [wrap, setWrap] = useState(false)
   const [splitMode, setSplitMode] = useState(true)
+  const [limited, setLimited] = useState(true)
   const [sendRange, setSendRange] = useState<SendRange>(null)
   const [anchorIdx, setAnchorIdx] = useState<number | null>(null)
   const logBottomRef  = useRef<HTMLDivElement>(null)
@@ -150,7 +160,8 @@ export function MonitorView() {
   const selectedIDRef = useRef<string | null>(null)
 
   useEffect(() => { selectedIDRef.current = selectedID }, [selectedID])
-  useEffect(() => { setSendRange(null); setAnchorIdx(null) }, [selectedID, splitMode])
+  // 表示対象が変わると送信行のインデックスがずれるので選択を解除する
+  useEffect(() => { setSendRange(null); setAnchorIdx(null) }, [selectedID, splitMode, limited])
 
   // サーバ状態の取得・購読
   useEffect(() => {
@@ -212,7 +223,11 @@ export function MonitorView() {
     splitBottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [logs])
 
-  const sendLogs = useMemo(() => logs.filter(e => e.dir === 0), [logs])
+  // 実際に描画するログ（上限オン時は末尾 MAX_LINES 行）
+  const viewLogs = useMemo(() => limitLogs(logs, limited), [logs, limited])
+  const truncated = viewLogs.length < logs.length
+
+  const sendLogs = useMemo(() => viewLogs.filter(e => e.dir === 0), [viewLogs])
 
   // 送信クリックハンドラ（時系列・分割共通）
   const handleSendClick = useCallback((i: number, shift: boolean) => {
@@ -233,7 +248,7 @@ export function MonitorView() {
   // 時系列ノード（送信連番を振りながら生成）
   const timelineNodes = useMemo(() => {
     let si = 0
-    return logs.map((entry, i) => {
+    return viewLogs.map((entry, i) => {
       const idx = entry.dir === 0 ? si++ : -1
       const hl: HL = entry.dir === 0 ? sendHL(sendRange, idx) : recvHL(highlightWin, entry.timestamp)
       return (
@@ -243,7 +258,7 @@ export function MonitorView() {
         />
       )
     })
-  }, [logs, wrap, sendRange, highlightWin, handleSendClick])
+  }, [viewLogs, wrap, sendRange, highlightWin, handleSendClick])
 
   const selectedConn = connections.find(c => c.id === selectedID)
 
@@ -338,6 +353,25 @@ export function MonitorView() {
               </Typography>
             </Tooltip>
           )}
+          <Tooltip title={`チェックで最新 ${MAX_LINES} 行のみ表示。外すと全ログを表示`}>
+            <FormControlLabel
+              control={
+                <Checkbox
+                  size="small"
+                  checked={limited}
+                  onChange={e => setLimited(e.target.checked)}
+                  sx={{ p: 0.5 }}
+                  slotProps={{ input: { 'aria-label': `最新 ${MAX_LINES} 行のみ表示` } }}
+                />
+              }
+              label={
+                <Typography variant="caption" sx={{ color: truncated ? 'warning.main' : 'text.secondary', whiteSpace: 'nowrap' }}>
+                  {truncated ? `${MAX_LINES}行 (全${logs.length})` : `${MAX_LINES}行`}
+                </Typography>
+              }
+              sx={{ m: 0, flexShrink: 0 }}
+            />
+          </Tooltip>
           <Tooltip title={splitMode ? '時系列表示' : '送受信分割表示'}>
             <IconButton size="small" onClick={() => setSplitMode(m => !m)} sx={{ color: splitMode ? 'primary.main' : 'text.disabled' }}>
               {splitMode ? <ViewStreamIcon sx={{ fontSize: 16 }} /> : <ViewColumnIcon sx={{ fontSize: 16 }} />}
@@ -360,9 +394,9 @@ export function MonitorView() {
 
         {splitMode && (
           <Box sx={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
-            <SplitPane logs={logs} dir={0} wrap={wrap} sendRange={sendRange} onSendClick={handleSendClick} />
+            <SplitPane logs={viewLogs} dir={0} wrap={wrap} sendRange={sendRange} onSendClick={handleSendClick} />
             <Divider orientation="vertical" flexItem />
-            <SplitPane logs={logs} dir={1} wrap={wrap} bottomRef={splitBottomRef} highlightWin={highlightWin} />
+            <SplitPane logs={viewLogs} dir={1} wrap={wrap} bottomRef={splitBottomRef} highlightWin={highlightWin} />
           </Box>
         )}
       </Box>
